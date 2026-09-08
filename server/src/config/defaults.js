@@ -4,9 +4,9 @@ export const DEFAULT_SETTINGS = {
   complaintEmail: "global2stor2@gmail.com",
   whatsappNumbers: ["923228791573", "923014968769"],
   aboutEn:
-    "At Global Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
+    "At Social Hub - Oman, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
   aboutAr:
-    "في Global Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
+    "في Social Hub - Oman، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
   ownersEn: "Owned & Managed by M Fareed Tariq & M Zuhaib Tariq",
   ownersAr: "مملوك ويدار بواسطة م. فريد طارق وم. زهيب طارق",
   socialLinks: {

@@ -17,7 +17,7 @@ export const COPY = {
       { icon: "bolt", title: "Instant Activation", body: "Quick & Easy" },
       { icon: "headset", title: "24/7 Support", body: "Always Here" },
     ],
-    trustBarLabel: "Why Global Store",
+    trustBarLabel: "Why Social Hub - Oman",
     trustBar: [
       "Lowest Prices",
       "Official Accounts",
@@ -47,7 +47,7 @@ export const COPY = {
     ],
     aboutTitle: "About Us",
     brandIntro:
-      "At Global Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
+      "At Social Hub - Oman, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
     catalogTitle: "Popular Subscriptions",
     viewAll: "View All",
     showLess: "Show Less",
@@ -213,7 +213,7 @@ export const COPY = {
       { icon: "bolt", title: "تفعيل فوري", body: "سريع وسهل" },
       { icon: "headset", title: "دعم 24/7", body: "دائماً معك" },
     ],
-    trustBarLabel: "لماذا Global Store",
+    trustBarLabel: "لماذا Social Hub - Oman",
     trustBar: [
       "أقل الأسعار",
       "حسابات رسمية",
@@ -243,7 +243,7 @@ export const COPY = {
     ],
     aboutTitle: "من نحن",
     brandIntro:
-      "في Global Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
+      "في Social Hub - Oman، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
     catalogTitle: "الاشتراكات الشائعة",
     viewAll: "عرض الكل",
     showLess: "عرض أقل",

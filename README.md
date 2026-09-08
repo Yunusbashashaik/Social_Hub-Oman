@@ -7,7 +7,7 @@ published: false
 > **Open the website (iPad / phone):** [https://yunusbashashaik.github.io/Social_Hub-Oman/](https://yunusbashashaik.github.io/Social_Hub-Oman/)  
 > Do **not** use `yunusbashashaik.github.io` alone — that is not your store URL.
 
-GlobalStore.com — bilingual digital subscription marketplace for Oman (OMR).
+Social Hub - Oman — bilingual digital subscription marketplace for Oman (OMR).
 
 ## Development
 
