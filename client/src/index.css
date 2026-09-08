@@ -40,10 +40,10 @@ body {
   line-height: 1.55;
   background-color: #02060f;
   background-image:
-    linear-gradient(180deg, rgba(2, 8, 20, 0.55) 0%, rgba(2, 8, 18, 0.72) 55%, rgba(1, 6, 14, 0.88) 100%),
+    linear-gradient(180deg, rgba(2, 8, 20, 0.28) 0%, rgba(2, 8, 18, 0.45) 55%, rgba(1, 6, 14, 0.7) 100%),
     var(--wallpaper-image, none);
   background-size: cover;
-  background-position: center center;
+  background-position: right center;
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
@@ -1044,35 +1044,28 @@ body.rtl .nav-dropdown-panel {
 .hero-banner-media {
   position: absolute;
   inset: 0;
+  /* Left-only soft veil for text — keep TV/icons on the right fully sharp */
   background-image:
     linear-gradient(
-      100deg,
-      rgba(2, 8, 20, 0.92) 0%,
-      rgba(2, 10, 24, 0.78) 30%,
-      rgba(3, 12, 30, 0.42) 52%,
-      rgba(4, 18, 40, 0.22) 72%,
-      rgba(4, 18, 40, 0.3) 100%
+      95deg,
+      rgba(2, 8, 20, 0.72) 0%,
+      rgba(2, 10, 24, 0.38) 26%,
+      rgba(3, 12, 30, 0.06) 46%,
+      transparent 56%
     ),
     var(--hero-wallpaper, var(--wallpaper-image, none));
   background-size: cover;
-  background-position: 72% 45%;
+  background-position: right 38%;
   background-repeat: no-repeat;
   pointer-events: none;
-  transform: scale(1.02);
-  animation: hero-bg-drift 18s ease-in-out infinite alternate;
+  transform: none;
+  animation: none;
+  filter: none;
+  image-rendering: auto;
 }
 
 .hero-banner-glow {
-  position: absolute;
-  inset: auto auto -28% -8%;
-  width: 55%;
-  height: 78%;
-  background:
-    radial-gradient(circle at 30% 45%, rgba(56, 189, 248, 0.28), transparent 48%),
-    radial-gradient(circle at 18% 55%, rgba(0, 85, 255, 0.28), transparent 58%);
-  filter: blur(28px);
-  pointer-events: none;
-  animation: orb-pulse 7s ease-in-out infinite;
+  display: none;
 }
 
 .hero-fiber-lines {

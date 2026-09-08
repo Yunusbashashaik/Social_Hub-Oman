@@ -70,8 +70,6 @@ export default function HomePage({ lang, t }) {
         style={{ "--hero-wallpaper": `url(${wallpaper})` }}
       >
         <div className="hero-banner-media" aria-hidden="true" />
-        <div className="hero-banner-glow" aria-hidden="true" />
-        <div className="hero-fiber-lines" aria-hidden="true" />
         <div className="container hero">
           <div className="hero-layout">
             <div className="hero-copy">
