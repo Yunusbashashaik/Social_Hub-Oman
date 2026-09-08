@@ -138,7 +138,7 @@ export default function Layout({ lang, setLang, t }) {
       document.getElementById("services")?.scrollIntoView({ behavior: "smooth" });
     } else {
       sessionStorage.setItem("gs_scroll_services", "1");
-      navigate("/#services");
+      navigate({ pathname: "/", hash: "services" });
     }
   }, [isHome, navigate]);
 
@@ -162,6 +162,15 @@ export default function Layout({ lang, setLang, t }) {
       document.getElementById("services")?.scrollIntoView({ behavior: "smooth" });
     });
   }, [location.hash, location.pathname, location.search, isHome]);
+
+  useEffect(() => {
+    if (!isHome || !location.hash || location.hash === "#services") return;
+    const id = location.hash.replace(/^#/, "");
+    if (!id) return;
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [location.hash, location.pathname, isHome]);
 
   useEffect(() => {
     const onOpen = (e) => {
@@ -204,16 +213,16 @@ export default function Layout({ lang, setLang, t }) {
                     {featured.map((service) => {
                       const label = lang === "ar" ? service.nameAr : service.nameEn;
                       return (
-                        <a
+                        <button
                           key={service.id}
+                          type="button"
                           role="menuitem"
-                          href={`/#${service.id}`}
-                          onClick={(e) => {
-                            e.preventDefault();
+                          className="nav-dropdown-item"
+                          onClick={() => {
                             setSubsOpen(false);
                             setMenuOpen(false);
                             if (!isHome) {
-                              navigate(`/#${service.id}`);
+                              navigate({ pathname: "/", hash: service.id });
                               return;
                             }
                             document
@@ -223,7 +232,7 @@ export default function Layout({ lang, setLang, t }) {
                         >
                           <span aria-hidden="true">{service.icon}</span>
                           {label}
-                        </a>
+                        </button>
                       );
                     })}
                     <button

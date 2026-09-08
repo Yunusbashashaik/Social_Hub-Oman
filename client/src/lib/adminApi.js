@@ -13,11 +13,20 @@ function candidateBases() {
   if (typeof window !== "undefined") {
     const runtime = window.__GLOBALSTORE_CONFIG__?.apiUrl;
     if (runtime) bases.push(trimSlash(runtime));
-    bases.push(trimSlash(window.location.origin));
+
+    // Prefer the app base path (required for GitHub project Pages).
+    const viteBase = trimSlash(import.meta.env.BASE_URL || "");
+    if (viteBase && viteBase !== "/") {
+      bases.push(trimSlash(`${window.location.origin}${viteBase.startsWith("/") ? viteBase : `/${viteBase}`}`));
+    }
+
     const folder = trimSlash(window.location.pathname.replace(/\/[^/]*$/, ""));
     if (folder && folder !== "/") {
       bases.push(trimSlash(`${window.location.origin}${folder}`));
     }
+
+    // Only probe site origin last; on project Pages this often 404s.
+    bases.push(trimSlash(window.location.origin));
   }
   bases.push(trimSlash(import.meta.env.VITE_API_URL || ""));
   bases.push("");
@@ -41,9 +50,18 @@ export function apiUrl(path) {
 }
 
 async function isLiveHealth(base) {
-  const res = await fetch(`${trimSlash(base)}/api/health`, { method: "GET" });
-  const data = await res.json().catch(() => null);
-  return Boolean(res.ok && data && data.ok === true);
+  try {
+    const res = await fetch(`${trimSlash(base)}/api/health`, {
+      method: "GET",
+      // Static GitHub Pages has no API — fail fast, avoid noisy retries.
+      signal: AbortSignal.timeout(2500),
+    });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return Boolean(data && data.ok === true);
+  } catch {
+    return false;
+  }
 }
 
 export async function discoverApiBase() {
