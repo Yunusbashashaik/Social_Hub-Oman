@@ -358,11 +358,6 @@ export default function Layout({ lang, setLang, t }) {
               </svg>
             </button>
 
-            <div className="header-region" aria-label="Oman Based">
-              <span className="header-region-flag" aria-hidden="true" />
-              <span className="header-region-text">OMAN Based</span>
-            </div>
-
             <button
               type="button"
               className={`nav-toggle${menuOpen ? " open" : ""}`}
