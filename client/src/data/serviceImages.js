@@ -43,6 +43,5 @@ export function serviceImageUrl(serviceId) {
 }
 
 export function wallpaperUrl() {
-  // Cache-busted filename: TV screen uses sharp catalog service icons (baked in).
-  return `${assetBase}hero-wallpaper.jpg`;
+  return `${assetBase}Social_Store_bg.JPG`;
 }
