@@ -1,30 +1,9 @@
 import { useEffect, useState } from "react";
-import ServiceIcon from "../components/ServiceIcon.jsx";
 import ServicesSection from "../components/ServicesSection.jsx";
 import { UiIcon } from "../components/UiIcon.jsx";
 import ViewPlansModal from "../components/ViewPlansModal.jsx";
 import { SERVICES, fetchServices } from "../data/catalog.js";
 import { wallpaperUrl } from "../data/serviceImages.js";
-
-/** Full 4×4 OTT grid matching Point 2 reference. */
-const HERO_LOGO_IDS = [
-  "netflix-private",
-  "netflix-prime",
-  "youtube-premium",
-  "disney-plus",
-  "hbo-max",
-  "iptv",
-  "shahid",
-  "apple-tv-plus",
-  "zee5",
-  "sonyliv",
-  "canva",
-  "expressvpn",
-  "paramount-plus",
-  "hulu",
-  "spotify-premium",
-  "osn-plus",
-];
 
 export default function HomePage({ lang, t }) {
   const [services, setServices] = useState(SERVICES);
@@ -72,12 +51,6 @@ export default function HomePage({ lang, t }) {
       window.removeEventListener("gs:services-updated", load);
     };
   }, [t.servicesLoadFallback]);
-
-  const heroLogos = (() => {
-    const byId = new Map(services.map((s) => [s.id, s]));
-    const picked = HERO_LOGO_IDS.map((id) => byId.get(id)).filter(Boolean);
-    return picked.length ? picked.slice(0, 16) : services.slice(0, 16);
-  })();
 
   const headline = t.heroHeadlineParts || {
     before: t.heroHeadline,
@@ -154,17 +127,13 @@ export default function HomePage({ lang, t }) {
             </div>
 
             <div className="hero-visual" aria-hidden="true">
-              <div
-                className="hero-planet"
-                style={{ backgroundImage: `url(${wallpaper})` }}
-              />
-              <div className="hero-orb" />
-              <div className="hero-logo-grid">
-                {heroLogos.map((service) => (
-                  <div key={service.id} className="hero-logo-tile">
-                    <ServiceIcon service={service} size="sm" />
-                  </div>
-                ))}
+              <div className="hero-tv-frame">
+                <img
+                  className="hero-tv-wallpaper"
+                  src={wallpaper}
+                  alt=""
+                  decoding="async"
+                />
               </div>
             </div>
           </div>

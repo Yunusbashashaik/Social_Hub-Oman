@@ -1040,10 +1040,10 @@ body.rtl .nav-dropdown-panel {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(105deg, rgba(2, 8, 20, 0.88) 0%, rgba(2, 10, 24, 0.55) 42%, rgba(3, 12, 30, 0.28) 68%, rgba(4, 18, 40, 0.45) 100%),
+    linear-gradient(105deg, rgba(2, 8, 20, 0.9) 0%, rgba(2, 10, 24, 0.62) 38%, rgba(3, 12, 30, 0.22) 62%, rgba(4, 18, 40, 0.18) 100%),
     var(--hero-wallpaper, var(--wallpaper-image, none));
   background-size: cover;
-  background-position: 70% center;
+  background-position: 72% center;
   background-repeat: no-repeat;
   pointer-events: none;
   transform: scale(1.02);
@@ -1221,6 +1221,31 @@ body.rtl .nav-dropdown-panel {
   display: grid;
   place-items: center;
   animation: hero-fade 1.1s var(--ease) 0.12s both;
+}
+
+.hero-tv-frame {
+  position: relative;
+  width: min(540px, 100%);
+  aspect-ratio: 4 / 3;
+  border-radius: 1.15rem;
+  overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow:
+    0 24px 60px rgba(2, 8, 20, 0.55),
+    0 0 40px rgba(212, 175, 55, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: #05080f;
+}
+
+.hero-tv-wallpaper {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Keep the living-room TV (with service icons on-screen) as the focal point */
+  object-position: 78% 55%;
+  display: block;
+  transform: scale(1.04);
+  animation: hero-bg-drift 18s ease-in-out infinite alternate;
 }
 
 .hero-planet {
@@ -3319,11 +3344,12 @@ body.rtl .cart-sheet {
     min-height: auto;
     padding-top: 1rem;
   }
-  .hero-planet {
-    width: min(420px, 120%);
-    opacity: 0.85;
+  .hero-tv-frame {
+    width: min(100%, 480px);
+    aspect-ratio: 16 / 11;
   }
   .hero-visual {
-    min-height: 300px;
+    min-height: 240px;
+    margin-top: 0.5rem;
   }
 }
