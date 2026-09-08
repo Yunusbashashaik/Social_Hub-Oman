@@ -46,7 +46,7 @@ export function buildComplaintEmailContent(ticket) {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
     <tr>
       <td style="padding:20px 24px;background:#0b1220;color:#f8fafc;">
-        <strong style="font-size:18px;">GlobalStore Complaint</strong>
+        <strong style="font-size:18px;">Social Hub - Oman Complaint</strong>
         <div style="opacity:0.8;font-size:13px;margin-top:4px;">${escapeHtml(ticket.id)}</div>
       </td>
     </tr>
@@ -81,7 +81,7 @@ export async function sendComplaintEmail(ticket, screenshotPath, toEmail) {
   const { text, html } = buildComplaintEmailContent(ticket);
 
   const mail = {
-    from: process.env.SMTP_FROM || "noreply@globalstore.com",
+    from: process.env.SMTP_FROM || "noreply@socialstore.com",
     to: target,
     subject: ticket.subject,
     text,

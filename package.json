@@ -1,8 +1,8 @@
 {
-  "name": "global-stores",
+  "name": "social-hub-oman",
   "private": true,
   "version": "1.0.0",
-  "description": "GlobalStore.com — digital subscription marketplace (Oman / OMR)",
+  "description": "Social Hub - Oman \u2014 digital subscription marketplace (Oman / OMR)",
   "type": "module",
   "workspaces": [
     "client",

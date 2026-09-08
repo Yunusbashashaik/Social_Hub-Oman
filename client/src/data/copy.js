@@ -17,7 +17,7 @@ export const COPY = {
       { icon: "bolt", title: "Instant Activation", body: "Quick & Easy" },
       { icon: "headset", title: "24/7 Support", body: "Always Here" },
     ],
-    trustBarLabel: "Why Global Store",
+    trustBarLabel: "Why Social Hub - Oman",
     trustBar: [
       "Lowest Prices",
       "Official Accounts",
@@ -47,7 +47,7 @@ export const COPY = {
     ],
     aboutTitle: "About Us",
     brandIntro:
-      "At Global Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
+      "At Social Hub - Oman, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
     catalogTitle: "Popular Subscriptions",
     viewAll: "View All",
     showLess: "Show Less",
@@ -68,7 +68,7 @@ export const COPY = {
     cartRemove: "Remove",
     cartClear: "Clear cart",
     cartPaymentNote:
-      "Note: All payments go through WAMD — it’s super easy and completely secure",
+      "Note: All payments go through BenefitPay (Bahrain National E-Wallet) — it’s super easy and completely secure",
     navHome: "Home",
     navSubscriptions: "Subscriptions",
     navViewMore: "View More",
@@ -124,7 +124,7 @@ export const COPY = {
     successBody:
       "Thank you. Your complaint was submitted successfully. Our team will review it shortly.",
     close: "Close",
-    footerOwners: "Owned & Managed by M Fareed Tariq & M Zuhaib Tariq",
+    footerOwners: "Owned By M Hamza Tariq",
     footerTerms: "Terms & Support",
     region: "Oman (OMR)",
     fabLabel: "WhatsApp Support",
@@ -213,7 +213,7 @@ export const COPY = {
       { icon: "bolt", title: "تفعيل فوري", body: "سريع وسهل" },
       { icon: "headset", title: "دعم 24/7", body: "دائماً معك" },
     ],
-    trustBarLabel: "لماذا Global Store",
+    trustBarLabel: "لماذا Social Hub - Oman",
     trustBar: [
       "أقل الأسعار",
       "حسابات رسمية",
@@ -243,7 +243,7 @@ export const COPY = {
     ],
     aboutTitle: "من نحن",
     brandIntro:
-      "في Global Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
+      "في Social Hub - Oman، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
     catalogTitle: "الاشتراكات الشائعة",
     viewAll: "عرض الكل",
     showLess: "عرض أقل",
@@ -264,7 +264,7 @@ export const COPY = {
     cartRemove: "إزالة",
     cartClear: "تفريغ السلة",
     cartPaymentNote:
-      "ملاحظة: جميع المدفوعات تتم عبر WAMD — سهلة وآمنة تماماً",
+      "ملاحظة: جميع المدفوعات تتم عبر BenefitPay (المحفظة الإلكترونية الوطنية البحرينية) — سهلة وآمنة تماماً",
     navHome: "الرئيسية",
     navSubscriptions: "الاشتراكات",
     navViewMore: "عرض المزيد",
@@ -319,7 +319,7 @@ export const COPY = {
     successBody:
       "شكراً لك. تم إرسال شكواك بنجاح. سيقوم فريقنا بمراجعتها قريباً.",
     close: "إغلاق",
-    footerOwners: "مملوك ويدار بواسطة م. فريد طارق وم. زهيب طارق",
+    footerOwners: "مملوك بواسطة م. حمزة طارق",
     footerTerms: "الشروط والدعم",
     region: "عُمان (ر.ع.)",
     fabLabel: "دعم واتساب",

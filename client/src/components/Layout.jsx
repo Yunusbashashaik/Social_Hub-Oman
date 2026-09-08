@@ -42,7 +42,7 @@ export default function Layout({ lang, setLang, t }) {
     () =>
       settings.whatsappNumbers?.length
         ? settings.whatsappNumbers
-        : ["923228791573", "923014968769"],
+        : ["923394077636", "97466382981"],
     [settings.whatsappNumbers],
   );
   const complaintEmail = settings.complaintEmail || "global2stor2@gmail.com";
@@ -111,8 +111,8 @@ export default function Layout({ lang, setLang, t }) {
     const phone = nextSupportNumber();
     const msg =
       lang === "ar"
-        ? "مرحباً، أحتاج مساعدة من GlobalStore.com"
-        : "Hello, I need help from GlobalStore.com";
+        ? "مرحباً، أحتاج مساعدة من Social Hub - Oman"
+        : "Hello, I need help from Social Hub - Oman";
     window.open(buildWhatsAppUrl(phone, msg), "_blank", "noopener,noreferrer");
   }, [lang]);
 
@@ -175,7 +175,7 @@ export default function Layout({ lang, setLang, t }) {
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">
-          <Link to="/" className="logo" aria-label="Global Store" onClick={() => setModal(null)}>
+          <Link to="/" className="logo" aria-label="Social Hub - Oman" onClick={() => setModal(null)}>
             <Logo showTagline />
           </Link>
 
