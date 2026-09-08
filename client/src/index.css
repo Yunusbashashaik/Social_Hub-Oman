@@ -986,41 +986,8 @@ body.rtl .nav-dropdown-panel {
   opacity: 0.9;
 }
 
-.header-region {
-  display: grid;
-  justify-items: center;
-  gap: 0.15rem;
-  margin-inline-start: 0.15rem;
-}
 
-.header-region-flag {
-  width: 28px;
-  height: 18px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background:
-    linear-gradient(#fff 0 33.33%, #c8102e 33.33% 66.66%, #fff 66.66%),
-    linear-gradient(90deg, #00843d 0 28%, transparent 28%);
-  background-blend-mode: normal;
-  /* Approximate Oman flag: white/red/green horizontal with green hoist */
-  background:
-    linear-gradient(
-      to bottom,
-      #fff 0 33%,
-      #c8102e 33% 66%,
-      #00843d 66% 100%
-    );
-  box-shadow: inset 18px 0 0 0 #00843d;
-}
 
-.header-region-text {
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.92);
-  white-space: nowrap;
-}
 
 .header-actions {
   display: flex;
@@ -1099,11 +1066,6 @@ body.rtl .nav-dropdown-panel {
   font-weight: 600;
 }
 
-@media (max-width: 720px) {
-  .header-region {
-    display: none;
-  }
-}
 
 
 .hero-banner {

@@ -43,5 +43,5 @@ export function serviceImageUrl(serviceId) {
 }
 
 export function wallpaperUrl() {
-  return `${assetBase}Social_Store_bg.JPG`;
+  return `${assetBase}hero-wallpaper.jpg`;
 }
