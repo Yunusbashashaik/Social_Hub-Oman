@@ -8,7 +8,7 @@ export default function ServiceCard({ service, lang, t, onViewPlans }) {
     lang === "ar"
       ? service.typeAr || "مشترك / خاص"
       : service.typeEn || "Shared / Private";
-  const currency = lang === "ar" ? "د.ب" : "BHD";
+  const currency = lang === "ar" ? "ر.ع." : "OMR";
   const oos = isOutOfStock(service);
   const startingPrice = oos
     ? 0

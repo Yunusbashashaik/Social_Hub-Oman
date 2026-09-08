@@ -59,13 +59,13 @@ export function startServer() {
   if (passengerGlobal) {
     globalThis.PhusionPassenger.configure({ autoInstall: false });
     app.listen("passenger");
-    console.log("Social Store API listening via Phusion Passenger");
+    console.log("Social Hub - Oman API listening via Phusion Passenger");
     return;
   }
 
   app.listen(PORT, HOST, () => {
     console.log(
-      `Social Store API listening on http://${HOST}:${PORT}${passengerEnv ? " (Passenger env)" : ""}`,
+      `Social Hub - Oman API listening on http://${HOST}:${PORT}${passengerEnv ? " (Passenger env)" : ""}`,
     );
   });
 }

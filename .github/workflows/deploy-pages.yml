@@ -1,6 +1,6 @@
 name: Deploy to GitHub Pages
 
-# https://yunusbashashaik.github.io/Social_Store-Bahrain/
+# https://yunusbashashaik.github.io/Social_Hub-Oman/
 # Pages setting: Deploy from a branch → gh-pages → / (root)
 
 on:
@@ -31,7 +31,7 @@ jobs:
       - name: Build client
         run: npm run build -w client
         env:
-          VITE_BASE_PATH: /Social_Store-Bahrain/
+          VITE_BASE_PATH: /Social_Hub-Oman/
 
       - name: SPA fallback + Jekyll bypass
         run: |

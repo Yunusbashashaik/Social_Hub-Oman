@@ -3,9 +3,9 @@ export const DEFAULT_SETTINGS = {
   complaintEmail: "global2stor2@gmail.com",
   whatsappNumbers: ["923394077636", "97466382981"],
   aboutEn:
-    "At Social Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Bahrain at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
+    "At Social Hub - Oman, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
   aboutAr:
-    "في Social Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في البحرين بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
+    "في Social Hub - Oman، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
   ownersEn: "Owned By M Hamza Tariq",
   ownersAr: "مملوك بواسطة م. حمزة طارق",
   socialLinks: {

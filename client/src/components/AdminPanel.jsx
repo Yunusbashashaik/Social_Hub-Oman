@@ -654,7 +654,7 @@ export default function AdminPanel({ open, onClose, t }) {
                       <small>
                         {service.outOfStock
                           ? t.outOfStock
-                          : `${service.prices.month} / ${service.prices.year} BHD`}
+                          : `${service.prices.month} / ${service.prices.year} OMR`}
                       </small>
                     </button>
                   ))}

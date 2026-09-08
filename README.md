@@ -2,12 +2,12 @@
 published: false
 ---
 
-# Social_Store-Bahrain
+# Social_Hub-Oman
 
-> **Open the website (iPad / phone):** [https://yunusbashashaik.github.io/Social_Store-Bahrain/](https://yunusbashashaik.github.io/Social_Store-Bahrain/)  
+> **Open the website (iPad / phone):** [https://yunusbashashaik.github.io/Social_Hub-Oman/](https://yunusbashashaik.github.io/Social_Hub-Oman/)  
 > Do **not** use `yunusbashashaik.github.io` alone — that is not your store URL.
 
-Social Store — bilingual digital subscription marketplace for Bahrain (BHD).
+Social Hub - Oman — bilingual digital subscription marketplace for Oman (OMR).
 
 ## Development
 
@@ -101,12 +101,12 @@ Pushes to **`main`** run [`.github/workflows/deploy-pages.yml`](.github/workflow
 
 ### One-time setup (iPhone, iPad, or computer)
 
-1. Open **https://github.com/Yunusbashashaik/Social_Store-Bahrain/settings/pages**
+1. Open **https://github.com/Yunusbashashaik/Social_Hub-Oman/settings/pages**
 2. Under **Build and deployment** → **Source**, choose **Deploy from a branch**
 3. **Branch:** `gh-pages` · **Folder:** `/ (root)` or `/docs` · **Save**
 4. Wait 1–2 minutes, then open on your iPad:
 
-   **https://yunusbashashaik.github.io/Social_Store-Bahrain/**
+   **https://yunusbashashaik.github.io/Social_Hub-Oman/**
 
 If the workflow has not run yet, go to **Actions** → **Deploy to GitHub Pages** → **Run workflow**.
 
