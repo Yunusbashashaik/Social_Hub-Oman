@@ -5,3 +5,5 @@ dist/
 server/data/
 *.log
 .DS_Store
+*.webp
+hero-verification-screenshot.*
