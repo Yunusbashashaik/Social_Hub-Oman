@@ -163,6 +163,21 @@ button,
   filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.35));
 }
 
+.brand-mark-img {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.35));
+  background: #0b0b0b;
+}
+
+.brand-tagline--compact {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
 .brand-text {
   display: grid;
   gap: 0.12rem;

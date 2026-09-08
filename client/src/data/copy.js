@@ -17,7 +17,7 @@ export const COPY = {
       { icon: "bolt", title: "Instant Activation", body: "Quick & Easy" },
       { icon: "headset", title: "24/7 Support", body: "Always Here" },
     ],
-    trustBarLabel: "Why Global Store",
+    trustBarLabel: "Why Social Store",
     trustBar: [
       "Lowest Prices",
       "Official Accounts",
@@ -42,12 +42,12 @@ export const COPY = {
     featureBarSupport: [
       { icon: "lock", title: "Secure Payments", body: "Protected Checkout" },
       { icon: "globe", title: "Global Access", body: "Watch Anywhere" },
-      { icon: "users", title: "Trusted by Customers", body: "Loved Across Oman" },
+      { icon: "users", title: "Trusted by Customers", body: "Loved Across Bahrain" },
       { icon: "headset", title: "24/7 Customer Support", body: "Always Ready to Help" },
     ],
     aboutTitle: "About Us",
     brandIntro:
-      "At Global Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
+      "At Social Store, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Bahrain at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
     catalogTitle: "Popular Subscriptions",
     viewAll: "View All",
     showLess: "Show Less",
@@ -68,7 +68,7 @@ export const COPY = {
     cartRemove: "Remove",
     cartClear: "Clear cart",
     cartPaymentNote:
-      "Note: All payments go through WAMD — it’s super easy and completely secure",
+      "Note: All payments go through BenefitPay (Bahrain National E-Wallet) — it’s super easy and completely secure",
     navHome: "Home",
     navSubscriptions: "Subscriptions",
     navViewMore: "View More",
@@ -124,9 +124,9 @@ export const COPY = {
     successBody:
       "Thank you. Your complaint was submitted successfully. Our team will review it shortly.",
     close: "Close",
-    footerOwners: "Owned & Managed by M Fareed Tariq & M Zuhaib Tariq",
+    footerOwners: "Owned By M Hamza Tariq",
     footerTerms: "Terms & Support",
-    region: "Oman (OMR)",
+    region: "Bahrain (BHD)",
     fabLabel: "WhatsApp Support",
     servicesLoadFallback:
       "Showing cached catalog — live prices will refresh when the API is available.",
@@ -152,8 +152,8 @@ export const COPY = {
     adminEditAbout: "About Us",
     adminNameEn: "Service Name",
     adminNameAr: "Name (Arabic)",
-    adminPriceMonth: "1-Month Price (OMR)",
-    adminPriceYear: "1-Year Price (OMR)",
+    adminPriceMonth: "1-Month Price (BHD)",
+    adminPriceYear: "1-Year Price (BHD)",
     adminDescEn: "English Description",
     adminDescAr: "Arabic Description",
     adminImageUpload: "Image Upload (JPEG/JPG)",
@@ -213,7 +213,7 @@ export const COPY = {
       { icon: "bolt", title: "تفعيل فوري", body: "سريع وسهل" },
       { icon: "headset", title: "دعم 24/7", body: "دائماً معك" },
     ],
-    trustBarLabel: "لماذا Global Store",
+    trustBarLabel: "لماذا Social Store",
     trustBar: [
       "أقل الأسعار",
       "حسابات رسمية",
@@ -238,12 +238,12 @@ export const COPY = {
     featureBarSupport: [
       { icon: "lock", title: "مدفوعات آمنة", body: "دفع محمي" },
       { icon: "globe", title: "وصول عالمي", body: "شاهد من أي مكان" },
-      { icon: "users", title: "موثوق من العملاء", body: "محبوب في عُمان" },
+      { icon: "users", title: "موثوق من العملاء", body: "محبوب في البحرين" },
       { icon: "headset", title: "دعم عملاء 24/7", body: "جاهزون للمساعدة" },
     ],
     aboutTitle: "من نحن",
     brandIntro:
-      "في Global Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
+      "في Social Store، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في البحرين بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
     catalogTitle: "الاشتراكات الشائعة",
     viewAll: "عرض الكل",
     showLess: "عرض أقل",
@@ -264,7 +264,7 @@ export const COPY = {
     cartRemove: "إزالة",
     cartClear: "تفريغ السلة",
     cartPaymentNote:
-      "ملاحظة: جميع المدفوعات تتم عبر WAMD — سهلة وآمنة تماماً",
+      "ملاحظة: جميع المدفوعات تتم عبر BenefitPay (المحفظة الإلكترونية الوطنية البحرينية) — سهلة وآمنة تماماً",
     navHome: "الرئيسية",
     navSubscriptions: "الاشتراكات",
     navViewMore: "عرض المزيد",
@@ -319,9 +319,9 @@ export const COPY = {
     successBody:
       "شكراً لك. تم إرسال شكواك بنجاح. سيقوم فريقنا بمراجعتها قريباً.",
     close: "إغلاق",
-    footerOwners: "مملوك ويدار بواسطة م. فريد طارق وم. زهيب طارق",
+    footerOwners: "مملوك بواسطة م. حمزة طارق",
     footerTerms: "الشروط والدعم",
-    region: "عُمان (ر.ع.)",
+    region: "البحرين (د.ب)",
     fabLabel: "دعم واتساب",
     servicesLoadFallback:
       "عرض الكتالوج المحفوظ — ستتحدث الأسعار عند توفر الخادم.",
@@ -347,8 +347,8 @@ export const COPY = {
     adminEditAbout: "من نحن",
     adminNameEn: "اسم الخدمة",
     adminNameAr: "الاسم (عربي)",
-    adminPriceMonth: "سعر شهر واحد (ر.ع.)",
-    adminPriceYear: "سعر سنة واحدة (ر.ع.)",
+    adminPriceMonth: "سعر شهر واحد (د.ب)",
+    adminPriceYear: "سعر سنة واحدة (د.ب)",
     adminDescEn: "الوصف (إنجليزي)",
     adminDescAr: "الوصف (عربي)",
     adminImageUpload: "رفع صورة (JPEG/JPG)",

@@ -29,7 +29,7 @@ jobs:
       - name: Build client
         run: npm run build -w client
         env:
-          VITE_BASE_PATH: /Social_Hub-Oman/
+          VITE_BASE_PATH: /Social_Store-Bahrain/
       - name: SPA fallback + Jekyll bypass
         run: |
           cp client/dist/index.html client/dist/404.html

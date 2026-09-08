@@ -2,7 +2,7 @@
 
 ## Your store URL
 
-### **https://yunusbashashaik.github.io/Social_Hub-Oman/**
+### **https://yunusbashashaik.github.io/Social_Store-Bahrain/**
 
 ---
 
@@ -16,7 +16,7 @@ Do **not** keep a “Deploy static content to Pages” workflow that uploads the
 
 That workflow is GitHub’s **legacy branch deploy**. When it hangs or the site status is `errored` / stuck `building`, do this once:
 
-1. Open **https://github.com/Yunusbashashaik/Social_Hub-Oman/settings/pages**
+1. Open **https://github.com/Yunusbashashaik/Social_Store-Bahrain/settings/pages**
 2. Under **Build and deployment** → **Source**, choose **GitHub Actions**
 3. Save, then open **Actions** → **Deploy Pages (GitHub Actions)** → **Run workflow**
 4. Wait 1–2 minutes, then hard-refresh the store URL above
@@ -37,4 +37,4 @@ That workflow is GitHub’s **legacy branch deploy**. When it hangs or the site 
 | URL | Result |
 |-----|--------|
 | `yunusbashashaik.github.io` | Not your store |
-| `yunusbashashaik.github.io/Social_Hub-Oman/` | **Correct homepage** |
+| `yunusbashashaik.github.io/Social_Store-Bahrain/` | **Correct homepage** |

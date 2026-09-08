@@ -16,7 +16,7 @@ export default function ViewPlansModal({ service, lang, t, onClose }) {
       : service.typeEn || "Shared / Private";
   const description =
     lang === "ar" ? service.descriptionAr : service.descriptionEn;
-  const currency = lang === "ar" ? "ر.ع." : "OMR";
+  const currency = lang === "ar" ? "د.ب" : "BHD";
   const qty = getQty(service.id, duration);
   const key = itemKey(service.id, duration);
 

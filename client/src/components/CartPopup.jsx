@@ -12,7 +12,7 @@ function durationLabel(duration, t) {
 }
 
 function buildCartOrderMessage(items, lang, t) {
-  const currency = lang === "ar" ? "ر.ع." : "OMR";
+  const currency = lang === "ar" ? "د.ب" : "BHD";
   const lines = items.map((item, idx) => {
     const name = lang === "ar" ? item.nameAr : item.nameEn;
     const dur = durationLabel(item.duration, t);
@@ -25,9 +25,9 @@ function buildCartOrderMessage(items, lang, t) {
   );
 
   if (lang === "ar") {
-    return `مرحباً فريق دعم GlobalStore.com، أود شراء الاشتراكات التالية:
+    return `مرحباً فريق دعم Social Store، أود شراء الاشتراكات التالية:
 
-الدولة: عُمان
+الدولة: البحرين
 ${lines.join("\n")}
 
 الإجمالي: ${total} ${currency}
@@ -35,9 +35,9 @@ ${lines.join("\n")}
 يرجى تزويدي بتفاصيل الدفع وإتمام طلبي.`;
   }
 
-  return `Hello GlobalStore.com Support Team, I would like to purchase the following subscriptions:
+  return `Hello Social Store Support Team, I would like to purchase the following subscriptions:
 
-Country: Oman
+Country: Bahrain
 ${lines.join("\n")}
 
 Total: ${total} ${currency}
@@ -48,7 +48,7 @@ Please provide payment details and complete my order.`;
 export default function CartPopup({ open, onClose, lang, t }) {
   const { items, increment, decrement, removeItem, totalPrice, clearCart } =
     useCart();
-  const currency = lang === "ar" ? "ر.ع." : "OMR";
+  const currency = lang === "ar" ? "د.ب" : "BHD";
 
   useEffect(() => {
     if (!open) return undefined;

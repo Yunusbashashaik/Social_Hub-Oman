@@ -1,5 +1,5 @@
 {
-  "name": "GlobalStore.com",
+  "name": "Social Store",
   "install": "npm ci",
   "terminals": [
     {
