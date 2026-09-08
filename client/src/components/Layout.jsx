@@ -42,7 +42,7 @@ export default function Layout({ lang, setLang, t }) {
     () =>
       settings.whatsappNumbers?.length
         ? settings.whatsappNumbers
-        : ["923394077636", "97466382981"],
+        : ["923254308205", "933274596027"],
     [settings.whatsappNumbers],
   );
   const complaintEmail = settings.complaintEmail || "global2stor2@gmail.com";
