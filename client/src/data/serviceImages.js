@@ -43,5 +43,6 @@ export function serviceImageUrl(serviceId) {
 }
 
 export function wallpaperUrl() {
-  return `${assetBase}Social_Store_bg.JPG`;
+  // Cache-busted high-resolution hero wallpaper (user-provided image).
+  return `${assetBase}hero-wallpaper.jpg`;
 }
