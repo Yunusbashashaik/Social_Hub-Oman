@@ -15,10 +15,6 @@ export function setSupportNumbers(numbers) {
   }
 }
 
-export function getSupportNumbers() {
-  return supportNumbers;
-}
-
 export function nextSupportNumber() {
   const num = supportNumbers[orderLineIndex % supportNumbers.length];
   orderLineIndex += 1;

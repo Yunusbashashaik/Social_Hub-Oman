@@ -97,13 +97,13 @@ See `Tech. Document` for full product requirements.
 
 You **do not need a paid GitHub plan** for a **public** repository. GitHub Pages is included on free accounts. This repo is public.
 
-Pushes to **`main`** run [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml), which builds the site and pushes to the **`gh-pages`** branch (site files at both `/` and `/docs`).
+Pushes to **`main`** run [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml), which builds the client and publishes **`client/dist`** to the **`gh-pages`** branch root.
 
 ### One-time setup (iPhone, iPad, or computer)
 
 1. Open **https://github.com/Yunusbashashaik/Social_Hub-Oman/settings/pages**
 2. Under **Build and deployment** → **Source**, choose **Deploy from a branch**
-3. **Branch:** `gh-pages` · **Folder:** `/ (root)` or `/docs` · **Save**
+3. **Branch:** `gh-pages` · **Folder:** `/ (root)` · **Save**
 4. Wait 1–2 minutes, then open on your iPad:
 
    **https://yunusbashashaik.github.io/Social_Hub-Oman/**
