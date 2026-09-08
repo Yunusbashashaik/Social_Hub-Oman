@@ -1,7 +1,7 @@
 Social Hub - Oman — Website Requirements Specification (WRS)
 Project Overview & Ownership
 Platform Name: Social Hub - Oman
-Business Owners: M Hamza Tariq
+Business Owners: M Zuhaib Tariq, M Fareed Tariq
 Core Functionality: A high-end digital subscription marketplace. Upon opening the website, users land directly on the Subscription Services catalog with default Oman (OMR) pricing. Features full bilingual support (English & Arabic with LTR/RTL switching), direct WhatsApp order dispatch across two dedicated support lines, and a complaint submission module delivering directly to global2stor2@gmail.com.
 Key Functional & Interface Requirements
 1. Direct Entry, Fixed Localization & Language Toggle
@@ -17,7 +17,7 @@ Persistence: Saved in local storage.
 Design Aesthetic: Dark or modern luxury palette, clean bilingual typography (Inter / Tajawal), high-contrast CTA buttons, and smooth micro-interactions.
 Core Layout Sections:
 Hero Section: High-converting visual showcase highlighting instant digital delivery in Oman.
-Brand Introduction: Brief overview establishing marketplace trust under ownership of M Hamza Tariq.
+Brand Introduction: Brief overview establishing marketplace trust under ownership of M Zuhaib Tariq, M Fareed Tariq.
 Subscription Catalog Grid: Immediate display of all digital subscription cards with OMR price tags.
 Customer Support & WhatsApp Showcase: Highlights direct order routing to dedicated WhatsApp lines.
 Global Header & Footer: Persistent layout containers across all pages.
@@ -96,8 +96,8 @@ Plaintext
 4. Direct WhatsApp Ordering System & Multi-Number Logic
 Checkout routes directly to customer support over WhatsApp using two configured support numbers:
 Configured Support Numbers:
-Line 1: +923394077636
-Line 2: +97466382981
+Line 1: +923254308205
+Line 2: +933274596027
 Routing Logic: Dynamic distribution (round-robin or sequential fallback) between both numbers.
 Order Payload Format
 English Payload:
@@ -122,7 +122,7 @@ Plaintext
 يرجى تزويدي بتفاصيل الدفع وإتمام طلبي.
 5. Floating Support & Complaint Handling
 Persistent WhatsApp Button
-Floating action button (FAB) fixed on the bottom corner of all pages targeting +923394077636 or +97466382981.
+Floating action button (FAB) fixed on the bottom corner of all pages targeting +923254308205 or +933274596027.
 Complaint Submission System
 Form Inputs: Full Name, Phone Number, Subject, Complaint Details, Screenshot Upload (Required).
 Target Delivery Email:
@@ -134,8 +134,8 @@ Branding: Social Hub - Oman Logo
 Center Links: Services, WhatsApp Support, Submit Complaint
 Top-Right (Fixed): Language Switcher (EN | العربية)
 Footer Section
-Branding & Credits: "Social Hub - Oman — Owned By M Hamza Tariq"
-Support Contacts: +923394077636 | +97466382981 | global2stor2@gmail.com
+Branding & Credits: "Social Hub - Oman — Owned By M Zuhaib Tariq, M Fareed Tariq"
+Support Contacts: +923254308205 | +933274596027 | global2stor2@gmail.com
 Quick Links: Services, Submit Complaint, Terms & Support
 7. Non-Functional & Technical Requirements
 WhatsApp Deep Linking: Built using standard [https://wa.me/](https://wa.me/) format for universal app/browser launching.
