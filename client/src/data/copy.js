@@ -124,7 +124,7 @@ export const COPY = {
     successBody:
       "Thank you. Your complaint was submitted successfully. Our team will review it shortly.",
     close: "Close",
-    footerOwners: "Owned By M Hamza Tariq",
+    footerOwners: "Owned By M Zuhaib Tariq, M Fareed Tariq",
     footerTerms: "Terms & Support",
     region: "Oman (OMR)",
     fabLabel: "WhatsApp Support",
@@ -319,7 +319,7 @@ export const COPY = {
     successBody:
       "شكراً لك. تم إرسال شكواك بنجاح. سيقوم فريقنا بمراجعتها قريباً.",
     close: "إغلاق",
-    footerOwners: "مملوك بواسطة م. حمزة طارق",
+    footerOwners: "مملوك بواسطة م. زهيب طارق وم. فريد طارق",
     footerTerms: "الشروط والدعم",
     region: "عُمان (ر.ع.)",
     fabLabel: "دعم واتساب",
