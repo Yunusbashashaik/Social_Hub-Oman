@@ -125,17 +125,6 @@ export default function HomePage({ lang, t }) {
                 ))}
               </ul>
             </div>
-
-            <div className="hero-visual" aria-hidden="true">
-              <div className="hero-tv-frame">
-                <img
-                  className="hero-tv-wallpaper"
-                  src={wallpaper}
-                  alt=""
-                  decoding="async"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </section>
