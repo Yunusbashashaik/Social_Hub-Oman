@@ -13,7 +13,7 @@ export default function Logo({ className = "", showTagline = false }) {
       />
       <span className="brand-text">
         <span className="brand-wordmark">
-          SOCIAL HUB <span>- OMAN</span>
+          SOCIAL <span>HUB</span>
         </span>
         {showTagline ? (
           <span className="brand-tagline">

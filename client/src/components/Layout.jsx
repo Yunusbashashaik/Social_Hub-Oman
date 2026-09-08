@@ -111,8 +111,8 @@ export default function Layout({ lang, setLang, t }) {
     const phone = nextSupportNumber();
     const msg =
       lang === "ar"
-        ? "مرحباً، أحتاج مساعدة من Social Hub - Oman"
-        : "Hello, I need help from Social Hub - Oman";
+        ? "مرحباً، أحتاج مساعدة من Social Hub"
+        : "Hello, I need help from Social Hub";
     window.open(buildWhatsAppUrl(phone, msg), "_blank", "noopener,noreferrer");
   }, [lang]);
 
@@ -184,7 +184,7 @@ export default function Layout({ lang, setLang, t }) {
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">
-          <Link to="/" className="logo" aria-label="Social Hub - Oman" onClick={() => setModal(null)}>
+          <Link to="/" className="logo" aria-label="Social Hub" onClick={() => setModal(null)}>
             <Logo showTagline />
           </Link>
 
@@ -329,17 +329,14 @@ export default function Layout({ lang, setLang, t }) {
             <div className="lang-switch" aria-label="Language">
               <button
                 type="button"
-                className={lang === "en" ? "active" : ""}
-                onClick={() => setLang("en")}
+                className={`lang-switch-pill${lang === "en" ? " active" : ""}`}
+                onClick={() => setLang(lang === "en" ? "ar" : "en")}
+                aria-label={lang === "en" ? "Switch to Arabic" : "Switch to English"}
               >
-                EN
-              </button>
-              <button
-                type="button"
-                className={lang === "ar" ? "active" : ""}
-                onClick={() => setLang("ar")}
-              >
-                العربية
+                <span>{lang === "en" ? "EN" : "ع"}</span>
+                <svg className="lang-switch-caret" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M7 10l5 5 5-5z" />
+                </svg>
               </button>
             </div>
 
@@ -360,6 +357,11 @@ export default function Layout({ lang, setLang, t }) {
                 />
               </svg>
             </button>
+
+            <div className="header-region" aria-label="Oman Based">
+              <span className="header-region-flag" aria-hidden="true" />
+              <span className="header-region-text">OMAN Based</span>
+            </div>
 
             <button
               type="button"

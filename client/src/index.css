@@ -164,12 +164,13 @@ button,
 }
 
 .brand-mark-img {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
   border-radius: 50%;
-  filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.35));
-  background: #0b0b0b;
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.35));
+  background: #05070d;
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .brand-tagline--compact {
@@ -186,17 +187,17 @@ button,
 
 .brand-wordmark {
   font-weight: 800;
-  letter-spacing: 0.06em;
-  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+  letter-spacing: 0.08em;
+  font-size: clamp(0.95rem, 1.6vw, 1.2rem);
   line-height: 1.05;
-  color: var(--text);
+  color: #fff;
   white-space: nowrap;
   text-decoration: none;
   text-transform: uppercase;
 }
 
 .brand-wordmark span {
-  color: #fff;
+  color: #60a5fa;
 }
 
 .brand-tagline {
@@ -901,59 +902,130 @@ body.rtl .nav-dropdown-panel {
 .header-icon-btn {
   width: 42px;
   height: 42px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.78);
+  background: rgba(8, 14, 28, 0.35);
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(12px);
   flex-shrink: 0;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), transform 0.2s var(--ease);
 }
 
 .header-icon-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
 }
 
 .header-icon-btn:hover {
-  transform: var(--hover-lift);
-  border-color: var(--border-strong);
-  color: var(--accent-hover);
+  transform: translateY(-1px);
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .header-whatsapp {
   color: #25d366;
-  border-color: rgba(37, 211, 102, 0.4);
+  border-color: rgba(37, 211, 102, 0.75);
 }
 
 .header-whatsapp:hover {
   color: #4ae07f;
-  box-shadow: 0 10px 22px rgba(37, 211, 102, 0.22);
+  box-shadow: 0 8px 18px rgba(37, 211, 102, 0.2);
+}
+
+.header-admin {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0b1220;
+  border-color: #fff;
 }
 
 .header-admin:hover {
-  color: var(--accent-hover);
+  background: #fff;
+  color: #0b1220;
 }
 
 .lang-switch {
   display: flex;
-  gap: 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.2rem;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
+  align-items: center;
   flex-shrink: 0;
+}
+
+.lang-switch-pill {
+  min-width: 54px;
+  height: 42px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.78);
+  background: rgba(8, 14, 28, 0.35);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(12px);
+}
+
+.lang-switch-pill:hover,
+.lang-switch-pill.active {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lang-switch-caret {
+  width: 16px;
+  height: 16px;
+  opacity: 0.9;
+}
+
+.header-region {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  margin-inline-start: 0.15rem;
+}
+
+.header-region-flag {
+  width: 28px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background:
+    linear-gradient(#fff 0 33.33%, #c8102e 33.33% 66.66%, #fff 66.66%),
+    linear-gradient(90deg, #00843d 0 28%, transparent 28%);
+  background-blend-mode: normal;
+  /* Approximate Oman flag: white/red/green horizontal with green hoist */
+  background:
+    linear-gradient(
+      to bottom,
+      #fff 0 33%,
+      #c8102e 33% 66%,
+      #00843d 66% 100%
+    );
+  box-shadow: inset 18px 0 0 0 #00843d;
+}
+
+.header-region-text {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.92);
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
   flex-shrink: 0;
   justify-self: end;
 }
@@ -1027,6 +1099,12 @@ body.rtl .nav-dropdown-panel {
   font-weight: 600;
 }
 
+@media (max-width: 720px) {
+  .header-region {
+    display: none;
+  }
+}
+
 
 .hero-banner {
   position: relative;
@@ -1044,16 +1122,16 @@ body.rtl .nav-dropdown-panel {
   background-image:
     linear-gradient(
       100deg,
-      rgba(2, 8, 20, 0.94) 0%,
-      rgba(2, 10, 24, 0.82) 32%,
-      rgba(3, 12, 30, 0.45) 52%,
-      rgba(4, 18, 40, 0.2) 68%,
-      rgba(4, 18, 40, 0.28) 100%
+      rgba(2, 8, 20, 0.92) 0%,
+      rgba(2, 10, 24, 0.78) 30%,
+      rgba(3, 12, 30, 0.42) 52%,
+      rgba(4, 18, 40, 0.22) 72%,
+      rgba(4, 18, 40, 0.3) 100%
     ),
     var(--hero-wallpaper, var(--wallpaper-image, none));
   background-size: cover;
-  /* Show full living-room scene; icons stay on the TV in the photo, not as a UI overlay */
-  background-position: 58% 42%;
+  /* New wallpaper: SH wall mark + TV with service icons on the right */
+  background-position: 72% 45%;
   background-repeat: no-repeat;
   pointer-events: none;
   transform: scale(1.02);
