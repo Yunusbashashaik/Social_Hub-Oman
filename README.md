@@ -36,7 +36,7 @@ Optional env:
 
 - `DATABASE_PATH` — custom SQLite file path
 - `ADMIN_USERNAME` (default: `admin`)
-- `ADMIN_PASSWORD` (default: `globalstores`)
+- `ADMIN_PASSWORD` (default: `Ss$135790`)
 - `ADMIN_SESSION_SECRET` — signs admin session tokens
 
 ### Admin panel
@@ -46,7 +46,7 @@ Click the **Admin** icon in the header. A modal prompts for credentials, then op
 - **Add Services** — JPEG image, name, EN/AR descriptions, 1-month and 1-year prices
 - **Edit Services** — dropdown for Services, Complaint Email ID, Contact Details (WhatsApp), and About Us / social links
 
-Default credentials: `admin` / `globalstores` (override with `ADMIN_USERNAME` / `ADMIN_PASSWORD`).
+Default credentials: `admin` / `Ss$135790` (override with `ADMIN_USERNAME` / `ADMIN_PASSWORD`).
 
 Out-of-stock services use price `0`, show an **Out of Stock** note, and disable Add to Cart.
 
@@ -68,7 +68,7 @@ Admin login needs a **running Node app**. If `https://YOUR-DOMAIN/api/health` do
    ```
 7. Restart the application  
 8. Visit `https://YOUR-DOMAIN/api/health` — you must see JSON `ok: true`  
-9. Then sign in with `admin` / `globalstores`
+9. Then sign in with `admin` / `Ss$135790`
 
 Do **not** FTP only `client/dist` into `public_html`. That is static hosting and `/api/health` will 404.
 
