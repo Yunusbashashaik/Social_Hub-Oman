@@ -130,6 +130,24 @@ export default function Layout({ lang, setLang, t }) {
     navigate("/");
   }, [isHome, navigate]);
 
+  /** Header brand click: always hard-refresh to the home page. */
+  const refreshHome = useCallback(
+    (event) => {
+      event.preventDefault();
+      setModal(null);
+      setMenuOpen(false);
+      setSubsOpen(false);
+      const base = import.meta.env.BASE_URL || "/";
+      const homePath = base.endsWith("/") ? base : `${base}/`;
+      if (isHome && !window.location.hash && !window.location.search) {
+        window.location.reload();
+        return;
+      }
+      window.location.assign(homePath);
+    },
+    [isHome],
+  );
+
   const openServices = useCallback(() => {
     setSubsOpen(false);
     setMenuOpen(false);
@@ -184,7 +202,7 @@ export default function Layout({ lang, setLang, t }) {
     <div className="app-shell">
       <header className="site-header">
         <div className="container header-inner">
-          <Link to="/" className="logo" aria-label="Social Hub" onClick={() => setModal(null)}>
+          <Link to="/" className="logo" aria-label="Social Hub" onClick={refreshHome}>
             <Logo showTagline />
           </Link>
 
