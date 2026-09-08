@@ -33,7 +33,7 @@ export function buildOrderMessage(service, durationKey, priceAmount, lang) {
   const durationEn = durationKey === "month" ? "1 Month" : "1 Year";
   const durationAr = durationKey === "month" ? "شهر واحد" : "سنة واحدة";
   if (lang === "ar") {
-    return `مرحباً فريق دعم Social Hub - Oman، أود شراء الاشتراك التالي:
+    return `مرحباً فريق دعم Social Hub، أود شراء الاشتراك التالي:
 
 الدولة: عُمان
 الخدمة: ${service.nameAr}
@@ -42,7 +42,7 @@ export function buildOrderMessage(service, durationKey, priceAmount, lang) {
 
 يرجى تزويدي بتفاصيل الدفع وإتمام طلبي.`;
   }
-  return `Hello Social Hub - Oman Support Team, I would like to purchase the following subscription:
+  return `Hello Social Hub Support Team, I would like to purchase the following subscription:
 
 Country: Oman
 Service: ${service.nameEn}

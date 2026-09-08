@@ -25,7 +25,7 @@ function buildCartOrderMessage(items, lang, t) {
   );
 
   if (lang === "ar") {
-    return `مرحباً فريق دعم Social Hub - Oman، أود شراء الاشتراكات التالية:
+    return `مرحباً فريق دعم Social Hub، أود شراء الاشتراكات التالية:
 
 الدولة: عُمان
 ${lines.join("\n")}
@@ -35,7 +35,7 @@ ${lines.join("\n")}
 يرجى تزويدي بتفاصيل الدفع وإتمام طلبي.`;
   }
 
-  return `Hello Social Hub - Oman Support Team, I would like to purchase the following subscriptions:
+  return `Hello Social Hub Support Team, I would like to purchase the following subscriptions:
 
 Country: Oman
 ${lines.join("\n")}
