@@ -7,7 +7,7 @@ Key Functional & Interface Requirements
 1. Direct Entry, Fixed Localization & Language Toggle
 Direct Access Landing: Opening the URL routes users directly to the Subscription Services catalog without any landing page or pre-entry modals.
 Default Target Region:
-🇰🇼 Oman (OMR) — All pricing tags display directly in Omani Rial (OMR).
+🇴🇲 Oman (OMR) — All pricing tags display directly in Omani Rial (OMR).
 Bilingual Switcher (Top-Right Placement):
 Location: Fixed in the top-right corner of the global header navigation bar across all device sizes.
 Supported Languages: English (EN) and Arabic (AR / العربية).
