@@ -270,7 +270,7 @@ export default function AdminPanel({ open, onClose, t }) {
     const service = services.find((s) => s.id === id);
     if (service) {
       setDraft(toDraft(service));
-      setImagePreview(service.imageUrl || "");
+      setImagePreview(service.imageSrc || service.imageUrl || "");
     }
     setImageFile(null);
     setError("");
@@ -378,7 +378,7 @@ export default function AdminPanel({ open, onClose, t }) {
       notifyServicesUpdated(next);
       setDraft(toDraft(updated));
       setImageFile(null);
-      setImagePreview(updated.imageUrl || "");
+      setImagePreview(updated.imageSrc || updated.imageUrl || "");
       showToast(t.adminSaved);
     } catch (err) {
       setError(err.message);
@@ -951,7 +951,7 @@ function ServiceForm({
         <div className="admin-image-preview">
           <img
             src={
-              imagePreview.startsWith("blob:") || imagePreview.startsWith("http")
+              /^(blob:|data:|https?:)/i.test(imagePreview)
                 ? imagePreview
                 : apiUrl(imagePreview)
             }
