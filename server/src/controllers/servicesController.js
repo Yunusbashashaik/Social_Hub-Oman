@@ -1,5 +1,4 @@
-import { listServices } from "../models/Service.js";
-import { getServiceImageBlob, imageFilenameFromUrl } from "../models/Service.js";
+import { getServiceImageBlob, imageFilenameFromUrl, listServices } from "../models/Service.js";
 import { SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import fs from "fs";
 import path from "path";
@@ -18,8 +17,14 @@ export function getPublicServiceImage(req, res) {
     const id = String(req.params.id || "");
     const blob = getServiceImageBlob(id);
     if (blob) {
-      res.setHeader("Content-Type", "image/jpeg");
-      res.setHeader("Cache-Control", "public, max-age=300");
+      const mime =
+        blob[0] === 0x89 && blob[1] === 0x50
+          ? "image/png"
+          : blob[0] === 0xff && blob[1] === 0xd8
+            ? "image/jpeg"
+            : "image/jpeg";
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Cache-Control", "no-store");
       res.send(blob);
       return;
     }

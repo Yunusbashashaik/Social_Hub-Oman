@@ -20,6 +20,7 @@ function rowToService(row) {
     descriptionAr: row.description_ar,
     prices: { month, year },
     imageUrl: row.image_url || null,
+    imageSrc: blobToDataUrl(row.image_blob),
     hasCustomImage: Boolean(row.image_url || row.image_blob),
     outOfStock,
     sortOrder: row.sort_order,
@@ -44,6 +45,28 @@ function sanitizePrice(value) {
   return Math.round(n * 1000) / 1000;
 }
 
+function asBuffer(value) {
+  if (!value) return null;
+  if (Buffer.isBuffer(value)) return value;
+  if (typeof value === "string") return Buffer.from(value, "base64");
+  return Buffer.from(value);
+}
+
+function blobMime(buf) {
+  if (!buf || buf.length < 12) return "image/jpeg";
+  if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
+  if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
+  if (buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
+  if (buf[0] === 0x52 && buf[8] === 0x57 && buf[9] === 0x45) return "image/webp";
+  return "image/jpeg";
+}
+
+function blobToDataUrl(value) {
+  const buf = asBuffer(value);
+  if (!buf || !buf.length) return null;
+  return `data:${blobMime(buf)};base64,${buf.toString("base64")}`;
+}
+
 export function listServices() {
   const rows = getDb()
     .prepare("SELECT * FROM services ORDER BY sort_order ASC, name_en ASC")
@@ -58,19 +81,15 @@ export function getServiceById(id) {
 
 export function getServiceImageBlob(id) {
   const row = getDb().prepare("SELECT * FROM services WHERE id = ?").get(id);
-  if (!row?.image_blob) return null;
-  if (Buffer.isBuffer(row.image_blob)) return row.image_blob;
-  if (typeof row.image_blob === "string") {
-    return Buffer.from(row.image_blob, "base64");
-  }
-  return Buffer.from(row.image_blob);
+  return asBuffer(row?.image_blob);
 }
 
 export function imageFilenameFromUrl(imageUrl) {
   const raw = String(imageUrl || "");
+  if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) return "";
   const parts = raw.split("/").filter(Boolean);
   const name = parts[parts.length - 1] || "";
-  if (!name || name.includes("..") || name.includes("\\")) return "";
+  if (!name || name.includes("..") || name.includes("\\") || name.length > 180) return "";
   return name;
 }
 
@@ -95,6 +114,12 @@ export function insertService(data, options = {}) {
   const outOfStock = deriveOutOfStock(data.prices, data.outOfStock);
   const month = outOfStock ? 0 : sanitizePrice(data.prices?.month ?? 0);
   const year = outOfStock ? 0 : sanitizePrice(data.prices?.year ?? 0);
+  const imageUrl =
+    data.imageUrl && !String(data.imageUrl).startsWith("data:")
+      ? data.imageUrl
+      : data.imageBlob
+        ? `/api/uploads/services/${data.id}.jpg`
+        : null;
 
   db.prepare(
     `INSERT INTO services (
@@ -118,15 +143,15 @@ export function insertService(data, options = {}) {
     descriptionAr: data.descriptionAr || "",
     priceMonth: month,
     priceYear: year,
-    imageUrl: data.imageUrl || null,
+    imageUrl,
     imageBlob: data.imageBlob || null,
     outOfStock: outOfStock ? 1 : 0,
     sortOrder: data.sortOrder ?? minOrder,
   });
 
   const created = getServiceById(data.id);
-  if (data.imageBlob && data.imageUrl) {
-    writeServiceImageFile(data.imageUrl, data.imageBlob);
+  if (data.imageBlob && imageUrl) {
+    writeServiceImageFile(imageUrl, data.imageBlob);
   }
   if (options.persist !== false) persistAdminState();
   return created;

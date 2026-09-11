@@ -58,10 +58,12 @@ export function persistAdminState() {
   if (persistDisabled || !source) return null;
   try {
     const services = source.listServices().map((service) => {
+      const rest = { ...service };
+      delete rest.imageSrc;
       const blob = source.getServiceImageBlob?.(service.id);
-      if (!blob) return service;
+      if (!blob) return rest;
       return {
-        ...service,
+        ...rest,
         imageBase64: Buffer.from(blob).toString("base64"),
       };
     });

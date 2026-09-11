@@ -7,23 +7,25 @@ export default function ServiceIcon({ service, size = "md" }) {
   const accent = service.accent || "#0055ff";
   const id = service.id || "";
   const imageUrl = service.imageUrl;
-  const hasCustomImage = service.hasCustomImage;
-  const bundled = serviceImageUrl(id);
+  const imageSrc = service.imageSrc;
+  const hasCustomImage = Boolean(service.hasCustomImage || imageSrc || imageUrl);
   const custom = customImageSrc(service);
+  const bundled = hasCustomImage ? null : serviceImageUrl(id);
   const [src, setSrc] = useState(custom || bundled);
   const [failed, setFailed] = useState(!custom && !bundled);
+  const name = service.nameEn || id;
 
   useEffect(() => {
     const nextCustom = customImageSrc({
       id,
       imageUrl,
+      imageSrc,
       hasCustomImage,
     });
-    const nextBundled = serviceImageUrl(id);
+    const nextBundled = hasCustomImage ? null : serviceImageUrl(id);
     setSrc(nextCustom || nextBundled);
     setFailed(!nextCustom && !nextBundled);
-  }, [id, imageUrl, hasCustomImage]);
-  const name = service.nameEn || id;
+  }, [id, imageUrl, imageSrc, hasCustomImage]);
 
   return (
     <div
@@ -41,8 +43,8 @@ export default function ServiceIcon({ service, size = "md" }) {
             loading="lazy"
             decoding="async"
             onError={() => {
-              if (custom && src === custom && bundled && bundled !== custom) {
-                setSrc(bundled);
+              if (custom && src !== custom) {
+                setSrc(custom);
                 return;
               }
               setFailed(true);
@@ -58,12 +60,15 @@ export default function ServiceIcon({ service, size = "md" }) {
 }
 
 function customImageSrc(service) {
-  if (service?.hasCustomImage || service?.imageUrl) {
-    if (service.id) return apiUrl(`/api/services/${service.id}/image`);
-    if (service.imageUrl.startsWith("http") || service.imageUrl.startsWith("blob:")) {
-      return service.imageUrl;
-    }
-    return apiUrl(service.imageUrl);
+  const src = service?.imageSrc || "";
+  if (src.startsWith("data:") || src.startsWith("blob:")) return src;
+  const url = service?.imageUrl || "";
+  if (url.startsWith("data:") || url.startsWith("blob:") || url.startsWith("http")) {
+    return url;
+  }
+  if (service?.hasCustomImage || url) {
+    if (service.id) return apiUrl(`/api/services/${encodeURIComponent(service.id)}/image`);
+    if (url) return apiUrl(url);
   }
   return null;
 }

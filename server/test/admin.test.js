@@ -191,6 +191,10 @@ describe("services + admin API", () => {
       .attach("image", jpeg, "netflix.jpg");
     assert.equal(update.status, 200);
     assert.equal(update.body.service.hasCustomImage, true);
+    assert.match(String(update.body.service.imageSrc || ""), /^data:image\//);
+    const listed = await request(app).get("/api/services");
+    const netflix = listed.body.services.find((s) => s.id === "netflix-private");
+    assert.match(String(netflix.imageSrc || ""), /^data:image\//);
     const imageUrl = update.body.service.imageUrl;
     assert.match(String(imageUrl), /\/api\/uploads\/services\//);
 
