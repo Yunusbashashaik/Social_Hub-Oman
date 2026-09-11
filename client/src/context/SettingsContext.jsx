@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DEFAULT_SETTINGS } from "../data/defaultSettings.js";
-import { fetchPublicSettings } from "../lib/adminApi.js";
+import { fetchPublicSettings, getCachedPublicSettings } from "../lib/adminApi.js";
 
 const SettingsContext = createContext({
   settings: DEFAULT_SETTINGS,
@@ -8,7 +8,9 @@ const SettingsContext = createContext({
 });
 
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState(
+    () => getCachedPublicSettings() || DEFAULT_SETTINGS,
+  );
 
   const refreshSettings = useCallback(async () => {
     try {

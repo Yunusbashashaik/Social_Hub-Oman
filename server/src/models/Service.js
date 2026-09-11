@@ -1,4 +1,5 @@
 import { getDb } from "../db/connection.js";
+import { persistAdminState } from "../db/persist.js";
 
 function rowToService(row) {
   if (!row) return null;
@@ -56,7 +57,7 @@ export function countServices() {
   return getDb().prepare("SELECT COUNT(*) AS n FROM services").get().n;
 }
 
-export function insertService(data) {
+export function insertService(data, options = {}) {
   const db = getDb();
   // Place newly added services at the top so special offers are seen first.
   const minOrder =
@@ -94,7 +95,9 @@ export function insertService(data) {
     sortOrder: data.sortOrder ?? minOrder,
   });
 
-  return getServiceById(data.id);
+  const created = getServiceById(data.id);
+  if (options.persist !== false) persistAdminState();
+  return created;
 }
 
 export function updateService(id, patch) {
@@ -159,27 +162,48 @@ export function updateService(id, patch) {
     )
     .run({ ...next, id });
 
-  return getServiceById(id);
+  const updated = getServiceById(id);
+  persistAdminState();
+  return updated;
 }
 
 export function deleteService(id) {
   const existing = getServiceById(id);
   if (!existing) return false;
   getDb().prepare("DELETE FROM services WHERE id = ?").run(id);
+  persistAdminState();
   return true;
+}
+
+export function replaceAllServices(services) {
+  const db = getDb();
+  const rows = Array.isArray(services) ? services : [];
+  const replace = db.transaction((list) => {
+    db.prepare("DELETE FROM services").run();
+    list.forEach((service, index) => {
+      insertService(
+        {
+          ...service,
+          sortOrder: service.sortOrder ?? index,
+          imageUrl: service.imageUrl || null,
+        },
+        { persist: false },
+      );
+    });
+  });
+  replace(rows);
+  persistAdminState();
+  return listServices();
 }
 
 export function seedServicesIfEmpty(defaults) {
   if (countServices() > 0) return false;
-  const insert = getDb().transaction((services) => {
-    services.forEach((service, index) => {
-      insertService({
-        ...service,
-        sortOrder: index,
-        imageUrl: service.imageUrl || null,
-      });
-    });
-  });
-  insert(defaults);
+  replaceAllServices(
+    defaults.map((service, index) => ({
+      ...service,
+      sortOrder: index,
+      imageUrl: service.imageUrl || null,
+    })),
+  );
   return true;
 }
