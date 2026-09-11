@@ -80,8 +80,6 @@ export function filterServices(services, query) {
       service.nameAr,
       service.typeEn,
       service.typeAr,
-      service.descriptionEn,
-      service.descriptionAr,
       service.id,
     ]
       .filter(Boolean)
