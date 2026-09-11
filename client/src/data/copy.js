@@ -49,6 +49,12 @@ export const COPY = {
     brandIntro:
       "At Social Hub, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
     catalogTitle: "Popular Subscriptions",
+    navSearch: "Search",
+    searchLabel: "Search subscriptions and services",
+    searchPlaceholder: "Search services…",
+    searchClear: "Clear search",
+    searchEmpty: "No matching services. Try another name.",
+    ownedManagedBy: "Owned & Managed by",
     servicesShown: "services",
     month: "1 Month",
     year: "1 Year",
@@ -121,7 +127,7 @@ export const COPY = {
     successBody:
       "Thank you. Your complaint was submitted successfully. Our team will review it shortly.",
     close: "Close",
-    footerOwners: "Owned By M Zuhaib Tariq, M Fareed Tariq",
+    footerOwners: "M Zuhaib Tariq, M Fareed Tariq",
     footerTerms: "Terms & Support",
     region: "Oman (OMR)",
     fabLabel: "WhatsApp Support",
@@ -239,6 +245,12 @@ export const COPY = {
     brandIntro:
       "في Social Hub، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
     catalogTitle: "الاشتراكات الشائعة",
+    navSearch: "بحث",
+    searchLabel: "ابحث في الاشتراكات والخدمات",
+    searchPlaceholder: "ابحث عن خدمة…",
+    searchClear: "مسح البحث",
+    searchEmpty: "لا توجد خدمات مطابقة. جرّب اسماً آخر.",
+    ownedManagedBy: "مملوك ويُدار بواسطة",
     servicesShown: "خدمات",
     month: "شهر واحد",
     year: "سنة واحدة",
@@ -310,7 +322,7 @@ export const COPY = {
     successBody:
       "شكراً لك. تم إرسال شكواك بنجاح. سيقوم فريقنا بمراجعتها قريباً.",
     close: "إغلاق",
-    footerOwners: "مملوك بواسطة م. زهيب طارق وم. فريد طارق",
+    footerOwners: "م. زهيب طارق وم. فريد طارق",
     footerTerms: "الشروط والدعم",
     region: "عُمان (ر.ع.)",
     fabLabel: "دعم واتساب",

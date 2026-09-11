@@ -2269,9 +2269,125 @@ body.rtl .nav-dropdown-panel {
   padding: 0;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .catalog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.35rem;
 }
+
+.catalog-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 16rem;
+  min-width: min(100%, 16rem);
+  max-width: 24rem;
+  margin-inline-start: auto;
+}
+
+.catalog-search-icon {
+  position: absolute;
+  inset-inline-start: 0.9rem;
+  width: 18px;
+  height: 18px;
+  color: #3b82f6;
+  pointer-events: none;
+}
+
+.catalog-search-input {
+  width: 100%;
+  height: 46px;
+  border: 1px solid rgba(0, 85, 255, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff, #f4f7ff);
+  color: #0b1220;
+  padding: 0 2.4rem 0 2.55rem;
+  font: inherit;
+  font-size: 0.95rem;
+  box-shadow:
+    0 10px 28px rgba(4, 12, 24, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  outline: none;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+body.rtl .catalog-search-input {
+  padding: 0 2.55rem 0 2.4rem;
+}
+
+.catalog-search-input::placeholder {
+  color: #64748b;
+}
+
+.catalog-search-input:focus {
+  border-color: #3b82f6;
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.16),
+    0 12px 28px rgba(0, 85, 255, 0.12);
+}
+
+.catalog-search-clear {
+  position: absolute;
+  inset-inline-end: 0.45rem;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.catalog-search-clear:hover {
+  background: rgba(15, 23, 42, 0.14);
+}
+
+.catalog-empty {
+  margin: 0.5rem 0 1.5rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.owner-heading {
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+.owner-numbers {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.owner-numbers a {
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.owner-numbers a:hover {
+  color: #7dd3fc;
+}
+
 
 .catalog h2 {
   color: #0f172a;

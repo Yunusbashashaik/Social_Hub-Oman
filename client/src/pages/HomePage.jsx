@@ -1,15 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import CatalogSearch from "../components/CatalogSearch.jsx";
 import ServicesSection from "../components/ServicesSection.jsx";
 import { UiIcon } from "../components/UiIcon.jsx";
 import ViewPlansModal from "../components/ViewPlansModal.jsx";
-import { SERVICES, fetchServices } from "../data/catalog.js";
+import { SERVICES, fetchServices, filterServices } from "../data/catalog.js";
 import { wallpaperUrl } from "../data/serviceImages.js";
 
 export default function HomePage({ lang, t }) {
   const [services, setServices] = useState(SERVICES);
   const [loadError, setLoadError] = useState("");
   const [plansService, setPlansService] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef(null);
   const wallpaper = wallpaperUrl();
+
+  const visibleServices = useMemo(
+    () => filterServices(services, searchQuery),
+    [services, searchQuery],
+  );
 
   useEffect(() => {
     // Keep first paint at the hero — never auto-jump to Popular Subscriptions.
@@ -17,6 +25,19 @@ export default function HomePage({ lang, t }) {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
     window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    const focusSearch = () => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    };
+    window.addEventListener("gs:focus-search", focusSearch);
+    if (sessionStorage.getItem("gs_focus_search") === "1") {
+      sessionStorage.removeItem("gs_focus_search");
+      window.setTimeout(focusSearch, 320);
+    }
+    return () => window.removeEventListener("gs:focus-search", focusSearch);
   }, []);
 
   useEffect(() => {
@@ -154,14 +175,24 @@ export default function HomePage({ lang, t }) {
               <span className="catalog-bar" aria-hidden="true" />
               {t.catalogTitle}
             </h2>
+            <CatalogSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              t={t}
+              inputRef={searchRef}
+            />
           </div>
           {loadError ? <p className="catalog-note">{loadError}</p> : null}
-          <ServicesSection
-            services={services}
-            lang={lang}
-            t={t}
-            onViewPlans={setPlansService}
-          />
+          {searchQuery.trim() && !visibleServices.length ? (
+            <p className="catalog-empty">{t.searchEmpty}</p>
+          ) : (
+            <ServicesSection
+              services={visibleServices}
+              lang={lang}
+              t={t}
+              onViewPlans={setPlansService}
+            />
+          )}
         </div>
       </section>
 

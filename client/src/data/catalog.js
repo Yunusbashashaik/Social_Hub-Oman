@@ -70,3 +70,30 @@ export function isOutOfStock(service) {
   const year = Number(service.prices?.year);
   return month === 0 || year === 0;
 }
+
+export function filterServices(services, query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return services;
+  return services.filter((service) => {
+    const haystack = [
+      service.nameEn,
+      service.nameAr,
+      service.typeEn,
+      service.typeAr,
+      service.descriptionEn,
+      service.descriptionAr,
+      service.id,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
+export function ownerDisplayNames(text) {
+  return String(text || "")
+    .replace(/^(owned\s*(?:&\s*managed\s*)?by)\s+/i, "")
+    .replace(/^(مملوك(?:ة)?(?:\s*ويُدار(?:ة)?)?\s*بواسطة)\s+/i, "")
+    .trim();
+}
