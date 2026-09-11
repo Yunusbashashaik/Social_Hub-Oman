@@ -112,6 +112,16 @@ button,
   background: rgba(8, 18, 30, 0.52);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  transition:
+    background 0.45s var(--ease),
+    box-shadow 0.45s var(--ease),
+    border-color 0.45s var(--ease);
+}
+
+.site-header.is-scrolled {
+  background: rgba(6, 14, 26, 0.82);
+  border-bottom-color: rgba(125, 211, 252, 0.28);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.32);
 }
 
 .site-header .container.header-inner {
@@ -1184,6 +1194,7 @@ body.rtl .nav-dropdown-panel {
   padding: 0.15rem 0;
   background: transparent;
   border: none;
+  animation: hero-fade 0.95s var(--ease) both;
 }
 
 .hero-trust-icon {
@@ -2229,6 +2240,11 @@ body.rtl .nav-dropdown-panel {
     scroll-behavior: auto !important;
   }
 
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }
 
 /* ===== Picture 1 / 2 redesign overrides ===== */
@@ -3002,3 +3018,33 @@ body.rtl .cart-sheet {
     padding-top: 1rem;
   }
 }
+
+/* Apple-style scroll reveals — fade + rise, no wallpaper blur */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 42px, 0);
+  transition:
+    opacity 0.85s var(--ease),
+    transform 0.85s var(--ease);
+  transition-delay: 0s;
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.service-card[data-reveal] {
+  transform: translate3d(0, 36px, 0) scale(0.985);
+}
+
+.service-card[data-reveal].is-revealed {
+  transform: none;
+}
+
+.hero-banner-media {
+  will-change: transform;
+}
+

@@ -109,8 +109,8 @@ export default function HomePage({ lang, t }) {
                 </button>
               </div>
               <ul className="hero-trust">
-                {t.heroTrust.map((item) => (
-                  <li key={item.title}>
+                {t.heroTrust.map((item, index) => (
+                  <li key={item.title} style={{ animationDelay: `${0.22 + index * 0.08}s` }}>
                     <span className="hero-trust-icon" aria-hidden="true">
                       <UiIcon name={item.icon} />
                     </span>
@@ -128,8 +128,13 @@ export default function HomePage({ lang, t }) {
 
       <section className="trust-bar-wrap">
         <div className="trust-bar container" aria-label={t.trustBarLabel}>
-          {t.trustBarDetailed.map((item) => (
-            <div key={item.title} className="trust-bar-item">
+          {t.trustBarDetailed.map((item, index) => (
+            <div
+              key={item.title}
+              className="trust-bar-item"
+              data-reveal
+              style={{ "--reveal-delay": `${index * 90}ms` }}
+            >
               <span className="trust-icon" aria-hidden="true">
                 <UiIcon name={item.icon} />
               </span>
@@ -144,7 +149,7 @@ export default function HomePage({ lang, t }) {
 
       <section className="catalog-band" id="services">
         <div className="container catalog">
-          <div className="catalog-header">
+          <div className="catalog-header" data-reveal>
             <h2>
               <span className="catalog-bar" aria-hidden="true" />
               {t.catalogTitle}
@@ -162,8 +167,13 @@ export default function HomePage({ lang, t }) {
 
       <section className="feature-bars container" aria-label={t.featureBarsLabel}>
         <div className="feature-bar feature-bar--dark">
-          {t.featureBarDark.map((item) => (
-            <div key={item.title} className="feature-bar-item">
+          {t.featureBarDark.map((item, index) => (
+            <div
+              key={item.title}
+              className="feature-bar-item"
+              data-reveal
+              style={{ "--reveal-delay": `${index * 80}ms` }}
+            >
               <span className="feature-bar-icon" aria-hidden="true">
                 <UiIcon name={item.icon} />
               </span>
@@ -175,8 +185,13 @@ export default function HomePage({ lang, t }) {
           ))}
         </div>
         <div className="feature-bar feature-bar--support">
-          {t.featureBarSupport.map((item) => (
-            <div key={item.title} className="feature-bar-item">
+          {t.featureBarSupport.map((item, index) => (
+            <div
+              key={item.title}
+              className="feature-bar-item"
+              data-reveal
+              style={{ "--reveal-delay": `${80 + index * 80}ms` }}
+            >
               <span className="feature-bar-icon" aria-hidden="true">
                 <UiIcon name={item.icon} />
               </span>
