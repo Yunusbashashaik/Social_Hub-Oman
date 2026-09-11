@@ -58,9 +58,10 @@ export function countServices() {
 
 export function insertService(data) {
   const db = getDb();
-  const maxOrder =
-    db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM services").get()
-      .m + 1;
+  // Place newly added services at the top so special offers are seen first.
+  const minOrder =
+    db.prepare("SELECT COALESCE(MIN(sort_order), 0) AS m FROM services").get().m -
+    1;
 
   const outOfStock = deriveOutOfStock(data.prices, data.outOfStock);
   const month = outOfStock ? 0 : sanitizePrice(data.prices?.month ?? 0);
@@ -90,7 +91,7 @@ export function insertService(data) {
     priceYear: year,
     imageUrl: data.imageUrl || null,
     outOfStock: outOfStock ? 1 : 0,
-    sortOrder: data.sortOrder ?? maxOrder,
+    sortOrder: data.sortOrder ?? minOrder,
   });
 
   return getServiceById(data.id);
