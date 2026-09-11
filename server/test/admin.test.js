@@ -104,6 +104,11 @@ describe("services + admin API", () => {
     const listed = await request(app).get("/api/services");
     const item = listed.body.services.find((s) => s.nameEn === "Test Stream");
     assert.ok(item);
+    assert.equal(
+      listed.body.services[0].nameEn,
+      "Test Stream",
+      "newly added services should appear at the top of the public list",
+    );
   });
 
   it("marks zero-price services as out of stock", async () => {
