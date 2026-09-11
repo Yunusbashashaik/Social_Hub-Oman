@@ -65,7 +65,7 @@ async function isLiveHealth(base) {
 }
 
 export async function discoverApiBase() {
-  if (resolvedBase !== undefined && backendAvailable) return resolvedBase;
+  if (backendAvailable === true && resolvedBase !== undefined) return resolvedBase;
   for (const base of candidateBases()) {
     try {
       if (await isLiveHealth(base)) {
@@ -82,7 +82,7 @@ export async function discoverApiBase() {
 }
 
 export async function hasBackendApi() {
-  if (backendAvailable !== undefined) return backendAvailable;
+  if (backendAvailable === true) return true;
   await discoverApiBase();
   return Boolean(backendAvailable);
 }
@@ -239,6 +239,7 @@ export async function adminSaveSettings(token, patch) {
     body: patch,
   });
   window.dispatchEvent(new Event("gs:settings-updated"));
+  rememberLiveSettings(data.settings);
   return data.settings;
 }
 
@@ -247,6 +248,7 @@ export async function adminDeleteService(token, id) {
 }
 
 export function notifyServicesUpdated(services) {
+  if (Array.isArray(services)) rememberLiveServices(services);
   window.dispatchEvent(
     new CustomEvent("gs:services-updated", {
       detail: Array.isArray(services) ? { services } : undefined,
@@ -263,15 +265,61 @@ export async function adminTranslate(token, text) {
   return data.text;
 }
 
+const LIVE_SERVICES_KEY = "gs_live_services";
+const LIVE_SETTINGS_KEY = "gs_live_settings";
+
+function readLiveCache(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeLiveCache(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function getCachedPublicSettings() {
+  const cached = readLiveCache(LIVE_SETTINGS_KEY);
+  if (cached && typeof cached === "object") return cached;
+  return null;
+}
+
+export function getCachedPublicServices() {
+  const cached = readLiveCache(LIVE_SERVICES_KEY);
+  if (Array.isArray(cached)) return cached;
+  return JSON.parse(JSON.stringify(SERVICES));
+}
+
+export function rememberLiveServices(services) {
+  if (Array.isArray(services)) writeLiveCache(LIVE_SERVICES_KEY, services);
+}
+
+export function rememberLiveSettings(settings) {
+  if (settings && typeof settings === "object") writeLiveCache(LIVE_SETTINGS_KEY, settings);
+}
+
 export async function fetchPublicServices() {
   if (await hasBackendApi()) {
     try {
       const data = await requestJson("/api/services");
-      return data.services;
+      if (Array.isArray(data.services)) {
+        writeLiveCache(LIVE_SERVICES_KEY, data.services);
+        return data.services;
+      }
     } catch {
-      /* fall through */
+      /* fall through to last live catalog */
     }
   }
+  const cached = readLiveCache(LIVE_SERVICES_KEY);
+  if (Array.isArray(cached)) return cached;
   return JSON.parse(JSON.stringify(SERVICES));
 }
 
@@ -279,10 +327,13 @@ export async function fetchPublicSettings() {
   if (await hasBackendApi()) {
     try {
       const data = await requestJson("/api/settings");
-      return data.settings;
+      if (data.settings) {
+        writeLiveCache(LIVE_SETTINGS_KEY, data.settings);
+        return data.settings;
+      }
     } catch {
       /* fall through */
     }
   }
-  return null;
+  return readLiveCache(LIVE_SETTINGS_KEY);
 }

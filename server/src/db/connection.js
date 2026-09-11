@@ -116,6 +116,10 @@ export function initDatabase(dbPath = getDbPath(), options = {}) {
   return db;
 }
 
+export function getActiveStorePath() {
+  return activeDbPath || getDbPath();
+}
+
 export function closeDatabase() {
   if (db) {
     try {

@@ -3,7 +3,10 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getDbEngine, initDatabase, UPLOADS_DIR } from "./db/connection.js";
+import { getPersistStatus } from "./db/persist.js";
 import { seedDatabase } from "./db/seed.js";
+import { countServices } from "./models/Service.js";
+import { getAllSettings } from "./models/Settings.js";
 import { adminRouter } from "./routes/admin.js";
 import { complaintRouter } from "./routes/complaints.js";
 import { servicesRouter } from "./routes/services.js";
@@ -23,10 +26,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/api/health", (_req, res) => {
+  const persist = getPersistStatus();
   res.json({
     ok: true,
     service: "global-store-api",
     db: getDbEngine(),
+    services: countServices(),
+    complaintEmail: getAllSettings().complaintEmail,
+    snapshotSavedAt: persist.snapshotSavedAt,
     time: new Date().toISOString(),
   });
 });

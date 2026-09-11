@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   FEATURED_SERVICE_IDS,
-  SERVICES,
   buildWhatsAppUrl,
   fetchServices,
   nextSupportNumber,
@@ -10,6 +9,7 @@ import {
   setSupportNumbers,
 } from "../data/catalog.js";
 import { useSettings } from "../context/SettingsContext.jsx";
+import { getCachedPublicServices } from "../lib/adminApi.js";
 import AdminPanel from "./AdminPanel.jsx";
 import ComplaintForm from "./ComplaintForm.jsx";
 import CartPopup from "./CartPopup.jsx";
@@ -38,7 +38,7 @@ export default function Layout({ lang, setLang, t }) {
   const [adminOpen, setAdminOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [subsOpen, setSubsOpen] = useState(false);
-  const [services, setServices] = useState(SERVICES);
+  const [services, setServices] = useState(getCachedPublicServices);
   const subsRef = useRef(null);
   const cartRef = useRef(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function Layout({ lang, setLang, t }) {
     }
     fetchServices()
       .then((next) => {
-        if (Array.isArray(next) && next.length) {
+        if (Array.isArray(next)) {
           setServices(next);
         }
       })

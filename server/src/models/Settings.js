@@ -1,4 +1,5 @@
 import { getDb } from "../db/connection.js";
+import { persistAdminState } from "../db/persist.js";
 import { DEFAULT_SETTINGS } from "../config/defaults.js";
 
 function getRaw(key) {
@@ -88,6 +89,22 @@ export function updateSettings(patch = {}) {
     setSetting("socialLinks", next);
   }
 
+  const saved = getAllSettings();
+  persistAdminState();
+  return saved;
+}
+
+export function countSettings() {
+  return getDb().prepare("SELECT COUNT(*) AS n FROM settings").get().n;
+}
+
+export function replaceAllSettings(settings) {
+  if (!settings || typeof settings !== "object") return getAllSettings();
+  const next = { ...DEFAULT_SETTINGS, ...settings };
+  for (const [key, value] of Object.entries(next)) {
+    setSetting(key, value);
+  }
+  persistAdminState();
   return getAllSettings();
 }
 

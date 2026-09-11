@@ -155,6 +155,13 @@ export class JsonDatabase {
       return { changes: 1 };
     }
 
+    if (sql === "delete from services") {
+      const before = this.data.services.length;
+      this.data.services = [];
+      this.save();
+      return { changes: before };
+    }
+
     if (sql.startsWith("delete from services")) {
       const id = namedOrPositional(params, "id", 0);
       const before = this.data.services.length;
