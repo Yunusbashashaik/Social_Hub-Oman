@@ -75,13 +75,7 @@ export function filterServices(services, query) {
   const q = String(query || "").trim().toLowerCase();
   if (!q) return services;
   return services.filter((service) => {
-    const haystack = [
-      service.nameEn,
-      service.nameAr,
-      service.typeEn,
-      service.typeAr,
-      service.id,
-    ]
+    const haystack = [service.nameEn, service.nameAr]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
