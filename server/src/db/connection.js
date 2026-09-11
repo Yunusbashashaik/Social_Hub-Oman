@@ -24,6 +24,7 @@ const SCHEMA_SQL = `
       price_month REAL NOT NULL DEFAULT 0,
       price_year REAL NOT NULL DEFAULT 0,
       image_url TEXT,
+      image_blob BLOB,
       out_of_stock INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -73,7 +74,15 @@ function openSqlite(dbPath) {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(SCHEMA_SQL);
+  migrateSqlite(sqlite);
   return sqlite;
+}
+
+function migrateSqlite(sqlite) {
+  const cols = sqlite.prepare("PRAGMA table_info(services)").all().map((col) => col.name);
+  if (!cols.includes("image_blob")) {
+    sqlite.exec("ALTER TABLE services ADD COLUMN image_blob BLOB");
+  }
 }
 
 export function initDatabase(dbPath = getDbPath(), options = {}) {

@@ -57,8 +57,16 @@ export function writeAdminSnapshot(state) {
 export function persistAdminState() {
   if (persistDisabled || !source) return null;
   try {
+    const services = source.listServices().map((service) => {
+      const blob = source.getServiceImageBlob?.(service.id);
+      if (!blob) return service;
+      return {
+        ...service,
+        imageBase64: Buffer.from(blob).toString("base64"),
+      };
+    });
     return writeAdminSnapshot({
-      services: source.listServices(),
+      services,
       settings: source.getAllSettings(),
     });
   } catch (err) {

@@ -11,6 +11,7 @@ import {
   adminTranslate,
   adminValidateSession,
   notifyServicesUpdated,
+  apiUrl,
 } from "../lib/adminApi.js";
 import { compressJpeg } from "../lib/compressJpeg.js";
 
@@ -278,11 +279,7 @@ export default function AdminPanel({ open, onClose, t }) {
   const onPickImage = async (file) => {
     if (!file) return;
     const name = file.name.toLowerCase();
-    const ok =
-      file.type === "image/jpeg" ||
-      file.type === "image/jpg" ||
-      name.endsWith(".jpg") ||
-      name.endsWith(".jpeg");
+    const ok = file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic)$/i.test(name);
     if (!ok) {
       setError(t.adminImageJpegOnly);
       return;
@@ -944,7 +941,7 @@ function ServiceForm({
         {t.adminImageUpload}
         <input
           type="file"
-          accept=".jpg,.jpeg,image/jpeg"
+          accept="image/*"
           onChange={(e) => onPickImage(e.target.files?.[0])}
           required={requireImage && !imagePreview}
           disabled={disabled}
@@ -952,7 +949,14 @@ function ServiceForm({
       </label>
       {imagePreview ? (
         <div className="admin-image-preview">
-          <img src={imagePreview} alt="" />
+          <img
+            src={
+              imagePreview.startsWith("blob:") || imagePreview.startsWith("http")
+                ? imagePreview
+                : apiUrl(imagePreview)
+            }
+            alt=""
+          />
         </div>
       ) : null}
       <div className="admin-field-head">

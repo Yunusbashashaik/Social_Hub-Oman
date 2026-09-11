@@ -27,21 +27,6 @@ function makeStorage(destDir) {
   });
 }
 
-const jpegOnly = (_req, file, cb) => {
-  const mime = (file.mimetype || "").toLowerCase();
-  const name = (file.originalname || "").toLowerCase();
-  const ok =
-    mime === "image/jpeg" ||
-    mime === "image/jpg" ||
-    name.endsWith(".jpg") ||
-    name.endsWith(".jpeg");
-  if (!ok) {
-    cb(new Error("Image must be JPEG/JPG format"));
-    return;
-  }
-  cb(null, true);
-};
-
 const anyImage = (_req, file, cb) => {
   if (!file.mimetype.startsWith("image/")) {
     cb(new Error("Screenshot must be an image (PNG, JPG, WEBP, GIF, etc.)"));
@@ -53,7 +38,7 @@ const anyImage = (_req, file, cb) => {
 export const uploadServiceImage = multer({
   storage: makeStorage(SERVICE_UPLOADS_DIR),
   limits: { fileSize: MAX_SERVICE_IMAGE_BYTES },
-  fileFilter: jpegOnly,
+  fileFilter: anyImage,
 }).single("image");
 
 export const uploadComplaintScreenshot = multer({

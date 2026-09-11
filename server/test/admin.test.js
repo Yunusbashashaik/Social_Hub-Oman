@@ -176,6 +176,33 @@ describe("services + admin API", () => {
     assert.ok(res.body.services.length >= DEFAULT_SERVICES.length);
   });
 
+  it("keeps a replaced service image after the upload file is removed", async () => {
+    const login = await request(app)
+      .post("/api/admin/login")
+      .send({ username: "admin", password: "Ss$135790" });
+    const token = login.body.token;
+    const jpeg = Buffer.from(
+      "ffd8ffe000104a46494600010100000100010000ffdb004300010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc0000b080001000101011100ffc40014100100000000000000000000000000000000ffda00080001000100003f00fbffd9",
+      "hex",
+    );
+    const update = await request(app)
+      .put("/api/admin/services/netflix-private")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("image", jpeg, "netflix.jpg");
+    assert.equal(update.status, 200);
+    assert.equal(update.body.service.hasCustomImage, true);
+    const imageUrl = update.body.service.imageUrl;
+    assert.match(String(imageUrl), /\/api\/uploads\/services\//);
+
+    const { SERVICE_UPLOADS_DIR } = await import("../src/db/connection.js");
+    const filename = String(imageUrl).split("/").pop();
+    fs.rmSync(path.join(SERVICE_UPLOADS_DIR, filename), { force: true });
+
+    const img = await request(app).get("/api/services/netflix-private/image");
+    assert.equal(img.status, 200);
+    assert.ok(Buffer.byteLength(img.body) > 0);
+  });
+
   it("deletes a service from the public catalog", async () => {
     const login = await request(app)
       .post("/api/admin/login")

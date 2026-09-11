@@ -1,6 +1,28 @@
 import fs from "fs";
 import path from "path";
 
+function encodeBlob(value) {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  return Buffer.from(value).toString("base64");
+}
+
+function decodeBlob(value) {
+  if (!value) return null;
+  if (Buffer.isBuffer(value)) return value;
+  if (typeof value === "string") {
+    try {
+      return Buffer.from(value, "base64");
+    } catch {
+      return null;
+    }
+  }
+  if (value.type === "Buffer" && Array.isArray(value.data)) {
+    return Buffer.from(value.data);
+  }
+  return null;
+}
+
 function nowIso() {
   return new Date().toISOString().replace("T", " ").slice(0, 19);
 }
@@ -25,7 +47,10 @@ export class JsonDatabase {
       const raw = fs.readFileSync(this.filePath, "utf8");
       const parsed = JSON.parse(raw);
       this.data = {
-        services: Array.isArray(parsed.services) ? parsed.services : [],
+        services: (Array.isArray(parsed.services) ? parsed.services : []).map((row) => ({
+          ...row,
+          image_blob: decodeBlob(row.image_blob),
+        })),
         settings: parsed.settings && typeof parsed.settings === "object" ? parsed.settings : {},
         complaints: Array.isArray(parsed.complaints) ? parsed.complaints : [],
       };
@@ -36,7 +61,15 @@ export class JsonDatabase {
 
   save() {
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-    fs.writeFileSync(this.filePath, `${JSON.stringify(this.data, null, 2)}\n`);
+    const payload = {
+      services: this.data.services.map((row) => ({
+        ...row,
+        image_blob: encodeBlob(row.image_blob),
+      })),
+      settings: this.data.settings,
+      complaints: this.data.complaints,
+    };
+    fs.writeFileSync(this.filePath, `${JSON.stringify(payload, null, 2)}\n`);
   }
 
   pragma() {
@@ -121,6 +154,7 @@ export class JsonDatabase {
         price_month: p.priceMonth,
         price_year: p.priceYear,
         image_url: p.imageUrl,
+        image_blob: p.imageBlob || null,
         out_of_stock: p.outOfStock,
         sort_order: p.sortOrder,
         created_at: nowIso(),
@@ -146,6 +180,7 @@ export class JsonDatabase {
         type_en: p.typeEn,
         type_ar: p.typeAr,
         image_url: p.imageUrl,
+        image_blob: p.imageBlob !== undefined ? p.imageBlob : current.image_blob,
         price_month: p.priceMonth,
         price_year: p.priceYear,
         out_of_stock: p.outOfStock,

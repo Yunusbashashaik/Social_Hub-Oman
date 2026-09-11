@@ -2,6 +2,8 @@ import {
   authenticateAdmin,
   createSessionToken,
 } from "../middleware/auth.js";
+import fs from "fs";
+import path from "path";
 import {
   deleteService,
   insertService,
@@ -9,7 +11,23 @@ import {
   updateService,
 } from "../models/Service.js";
 import { getAllSettings, updateSettings } from "../models/Settings.js";
+import { SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import { serviceImagePublicUrl } from "../middleware/upload.js";
+
+function readUploadedImage(file) {
+  if (!file) return { imageUrl: null, imageBlob: null };
+  const abs = file.path || path.join(SERVICE_UPLOADS_DIR, file.filename);
+  let imageBlob = null;
+  try {
+    imageBlob = fs.readFileSync(abs);
+  } catch (err) {
+    console.error("Failed to read uploaded service image", err?.message || err);
+  }
+  return {
+    imageUrl: serviceImagePublicUrl(file.filename),
+    imageBlob,
+  };
+}
 
 function slugify(name) {
   const base = String(name || "service")
@@ -88,9 +106,8 @@ export function createAdminService(req, res) {
       return;
     }
 
-    const imageUrl = req.file
-      ? serviceImagePublicUrl(req.file.filename)
-      : body.imageUrl || null;
+    const uploaded = readUploadedImage(req.file);
+    const imageUrl = uploaded.imageUrl || body.imageUrl || null;
 
     const service = insertService({
       id: uniqueServiceId(nameEn),
@@ -101,6 +118,7 @@ export function createAdminService(req, res) {
       prices,
       outOfStock: parseOutOfStock(body),
       imageUrl,
+      imageBlob: uploaded.imageBlob,
       icon: body.icon || "✨",
       accent: body.accent || "#38bdf8",
       typeEn: body.typeEn || "Shared / Private",
@@ -131,9 +149,11 @@ export function updateAdminService(req, res) {
     };
 
     if (req.file) {
-      patch.imageUrl = serviceImagePublicUrl(req.file.filename);
-    } else if (typeof body.imageUrl === "string") {
-      patch.imageUrl = body.imageUrl;
+      const uploaded = readUploadedImage(req.file);
+      patch.imageUrl = uploaded.imageUrl;
+      patch.imageBlob = uploaded.imageBlob;
+    } else if (typeof body.imageUrl === "string" && body.imageUrl.trim()) {
+      patch.imageUrl = body.imageUrl.trim();
     }
 
     if (Object.keys(patch.prices).length === 0) {

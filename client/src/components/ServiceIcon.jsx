@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { serviceImageUrl } from "../data/serviceImages.js";
 import { apiUrl } from "../lib/adminApi.js";
 
@@ -5,12 +6,23 @@ import { apiUrl } from "../lib/adminApi.js";
 export default function ServiceIcon({ service, size = "md" }) {
   const accent = service.accent || "#0055ff";
   const id = service.id || "";
-  const uploaded = service.imageUrl
-    ? service.imageUrl.startsWith("http")
-      ? service.imageUrl
-      : apiUrl(service.imageUrl)
-    : null;
-  const imageUrl = uploaded || serviceImageUrl(id);
+  const imageUrl = service.imageUrl;
+  const hasCustomImage = service.hasCustomImage;
+  const bundled = serviceImageUrl(id);
+  const custom = customImageSrc(service);
+  const [src, setSrc] = useState(custom || bundled);
+  const [failed, setFailed] = useState(!custom && !bundled);
+
+  useEffect(() => {
+    const nextCustom = customImageSrc({
+      id,
+      imageUrl,
+      hasCustomImage,
+    });
+    const nextBundled = serviceImageUrl(id);
+    setSrc(nextCustom || nextBundled);
+    setFailed(!nextCustom && !nextBundled);
+  }, [id, imageUrl, hasCustomImage]);
   const name = service.nameEn || id;
 
   return (
@@ -21,26 +33,39 @@ export default function ServiceIcon({ service, size = "md" }) {
     >
       <span className="service-icon-glow" />
       <span className="service-icon-mark" data-brand={id}>
-        {imageUrl ? (
+        {src && !failed ? (
           <img
             className="service-icon-img"
-            src={imageUrl}
+            src={src}
             alt=""
             loading="lazy"
             decoding="async"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              const fallback = e.currentTarget.nextElementSibling;
-              if (fallback) fallback.hidden = false;
+            onError={() => {
+              if (custom && src === custom && bundled && bundled !== custom) {
+                setSrc(bundled);
+                return;
+              }
+              setFailed(true);
             }}
           />
         ) : null}
-        <span hidden={Boolean(imageUrl)} className="service-icon-fallback">
+        <span hidden={Boolean(src) && !failed} className="service-icon-fallback">
           {renderFallback(id, accent, name)}
         </span>
       </span>
     </div>
   );
+}
+
+function customImageSrc(service) {
+  if (service?.hasCustomImage || service?.imageUrl) {
+    if (service.id) return apiUrl(`/api/services/${service.id}/image`);
+    if (service.imageUrl.startsWith("http") || service.imageUrl.startsWith("blob:")) {
+      return service.imageUrl;
+    }
+    return apiUrl(service.imageUrl);
+  }
+  return null;
 }
 
 function renderFallback(id, accent, name) {
