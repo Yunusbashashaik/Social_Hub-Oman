@@ -7,8 +7,8 @@ export const DEFAULT_SETTINGS = {
     "At Social Hub, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
   aboutAr:
     "في Social Hub، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
-  ownersEn: "Owned By M Zuhaib Tariq, M Fareed Tariq",
-  ownersAr: "مملوك بواسطة م. زهيب طارق وم. فريد طارق",
+  ownersEn: "M Zuhaib Tariq, M Fareed Tariq",
+  ownersAr: "م. زهيب طارق وم. فريد طارق",
   socialLinks: {
     whatsapp: "https://whatsapp.com/channel/0029Vb8CHOHJf05iTMmChh1U",
     instagram: "https://www.instagram.com/globalstoreold?igsh=MW1yZjdvZTYwODg1NQ==",
