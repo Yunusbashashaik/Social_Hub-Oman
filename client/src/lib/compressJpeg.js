@@ -21,7 +21,9 @@ function canvasToJpegBlob(canvas, quality) {
 /** Shrink large JPEGs before upload so add/edit service requests stay fast. */
 export async function compressJpeg(file) {
   if (!file || !(file instanceof Blob)) return file;
-  if (file.size <= SKIP_UNDER_BYTES) return file;
+  const type = String(file.type || "").toLowerCase();
+  const needsConvert = type && type !== "image/jpeg" && type !== "image/jpg";
+  if (!needsConvert && file.size <= SKIP_UNDER_BYTES) return file;
 
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));

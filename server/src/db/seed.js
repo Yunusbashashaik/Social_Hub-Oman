@@ -8,6 +8,7 @@ import {
   settingsMatchDefaults,
 } from "./persist.js";
 import {
+  getServiceImageBlob,
   listServices,
   replaceAllServices,
   seedServicesIfEmpty,
@@ -25,6 +26,7 @@ bindPersist({
   countSettings,
   replaceAllServices,
   replaceAllSettings,
+  getServiceImageBlob,
 });
 
 export function seedDatabase() {

@@ -1,5 +1,7 @@
-import { getDb } from "../db/connection.js";
+import { getDb, SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import { persistAdminState } from "../db/persist.js";
+import fs from "fs";
+import path from "path";
 
 function rowToService(row) {
   if (!row) return null;
@@ -18,6 +20,7 @@ function rowToService(row) {
     descriptionAr: row.description_ar,
     prices: { month, year },
     imageUrl: row.image_url || null,
+    hasCustomImage: Boolean(row.image_url || row.image_blob),
     outOfStock,
     sortOrder: row.sort_order,
   };
@@ -53,6 +56,31 @@ export function getServiceById(id) {
   return rowToService(row);
 }
 
+export function getServiceImageBlob(id) {
+  const row = getDb().prepare("SELECT * FROM services WHERE id = ?").get(id);
+  if (!row?.image_blob) return null;
+  if (Buffer.isBuffer(row.image_blob)) return row.image_blob;
+  if (typeof row.image_blob === "string") {
+    return Buffer.from(row.image_blob, "base64");
+  }
+  return Buffer.from(row.image_blob);
+}
+
+export function imageFilenameFromUrl(imageUrl) {
+  const raw = String(imageUrl || "");
+  const parts = raw.split("/").filter(Boolean);
+  const name = parts[parts.length - 1] || "";
+  if (!name || name.includes("..") || name.includes("\\")) return "";
+  return name;
+}
+
+export function writeServiceImageFile(imageUrl, imageBlob) {
+  const name = imageFilenameFromUrl(imageUrl);
+  if (!name || !imageBlob) return;
+  fs.mkdirSync(SERVICE_UPLOADS_DIR, { recursive: true });
+  fs.writeFileSync(path.join(SERVICE_UPLOADS_DIR, name), imageBlob);
+}
+
 export function countServices() {
   return getDb().prepare("SELECT COUNT(*) AS n FROM services").get().n;
 }
@@ -72,11 +100,11 @@ export function insertService(data, options = {}) {
     `INSERT INTO services (
       id, icon, accent, type_en, type_ar, name_en, name_ar,
       description_en, description_ar, price_month, price_year,
-      image_url, out_of_stock, sort_order, updated_at
+      image_url, image_blob, out_of_stock, sort_order, updated_at
     ) VALUES (
       @id, @icon, @accent, @typeEn, @typeAr, @nameEn, @nameAr,
       @descriptionEn, @descriptionAr, @priceMonth, @priceYear,
-      @imageUrl, @outOfStock, @sortOrder, datetime('now')
+      @imageUrl, @imageBlob, @outOfStock, @sortOrder, datetime('now')
     )`,
   ).run({
     id: data.id,
@@ -91,11 +119,15 @@ export function insertService(data, options = {}) {
     priceMonth: month,
     priceYear: year,
     imageUrl: data.imageUrl || null,
+    imageBlob: data.imageBlob || null,
     outOfStock: outOfStock ? 1 : 0,
     sortOrder: data.sortOrder ?? minOrder,
   });
 
   const created = getServiceById(data.id);
+  if (data.imageBlob && data.imageUrl) {
+    writeServiceImageFile(data.imageUrl, data.imageBlob);
+  }
   if (options.persist !== false) persistAdminState();
   return created;
 }
@@ -137,6 +169,8 @@ export function updateService(id, patch) {
     typeAr: typeof patch.typeAr === "string" ? patch.typeAr : current.typeAr,
     imageUrl:
       patch.imageUrl !== undefined ? patch.imageUrl : current.imageUrl,
+    imageBlob:
+      patch.imageBlob !== undefined ? patch.imageBlob : getServiceImageBlob(id),
     priceMonth: outOfStock ? 0 : nextPrices.month,
     priceYear: outOfStock ? 0 : nextPrices.year,
     outOfStock: outOfStock ? 1 : 0,
@@ -154,6 +188,7 @@ export function updateService(id, patch) {
         type_en = @typeEn,
         type_ar = @typeAr,
         image_url = @imageUrl,
+        image_blob = @imageBlob,
         price_month = @priceMonth,
         price_year = @priceYear,
         out_of_stock = @outOfStock,
@@ -161,6 +196,10 @@ export function updateService(id, patch) {
       WHERE id = @id`,
     )
     .run({ ...next, id });
+
+  if (next.imageBlob && next.imageUrl) {
+    writeServiceImageFile(next.imageUrl, next.imageBlob);
+  }
 
   const updated = getServiceById(id);
   persistAdminState();
@@ -186,6 +225,11 @@ export function replaceAllServices(services) {
           ...service,
           sortOrder: service.sortOrder ?? index,
           imageUrl: service.imageUrl || null,
+          imageBlob:
+            service.imageBlob ||
+            (service.imageBase64
+              ? Buffer.from(service.imageBase64, "base64")
+              : null),
         },
         { persist: false },
       );

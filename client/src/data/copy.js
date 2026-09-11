@@ -156,7 +156,7 @@ export const COPY = {
     adminDescEn: "English Description",
     adminDescAr: "Arabic Description",
     adminImageUpload: "Image Upload (JPEG/JPG)",
-    adminImageJpegOnly: "Please upload a JPEG/JPG image.",
+    adminImageJpegOnly: "Please upload an image (JPG, PNG, or WEBP).",
     adminOutOfStockHint:
       "Set either price to 0 to mark the service as Out of Stock.",
     adminComplaintEmail: "Complaint Email ID",
@@ -350,7 +350,7 @@ export const COPY = {
     adminDescEn: "الوصف (إنجليزي)",
     adminDescAr: "الوصف (عربي)",
     adminImageUpload: "رفع صورة (JPEG/JPG)",
-    adminImageJpegOnly: "يرجى رفع صورة بصيغة JPEG/JPG.",
+    adminImageJpegOnly: "يرجى رفع صورة (JPG أو PNG أو WEBP).",
     adminOutOfStockHint: "اضبط أي سعر على 0 لتعليم الخدمة كغير متوفرة.",
     adminComplaintEmail: "بريد الشكاوى",
     adminContactLead: "حدّث أرقام واتساب المستخدمة لطلبات العملاء.",
