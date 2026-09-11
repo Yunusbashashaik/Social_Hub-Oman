@@ -28,19 +28,6 @@ export default function HomePage({ lang, t }) {
   }, []);
 
   useEffect(() => {
-    const focusSearch = () => {
-      searchRef.current?.focus();
-      searchRef.current?.select?.();
-    };
-    window.addEventListener("gs:focus-search", focusSearch);
-    if (sessionStorage.getItem("gs_focus_search") === "1") {
-      sessionStorage.removeItem("gs_focus_search");
-      window.setTimeout(focusSearch, 320);
-    }
-    return () => window.removeEventListener("gs:focus-search", focusSearch);
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     const load = (event) => {
       const fromEvent = event?.detail?.services;

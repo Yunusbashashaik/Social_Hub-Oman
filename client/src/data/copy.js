@@ -49,7 +49,6 @@ export const COPY = {
     brandIntro:
       "At Social Hub, we bring world-class entertainment right to your screen without breaking the bank. We offer instant access to top premium OTT subscriptions in Oman at reasonable, budget-friendly prices—making streaming simple, affordable, and seamless.",
     catalogTitle: "Popular Subscriptions",
-    navSearch: "Search",
     searchLabel: "Search subscriptions and services",
     searchPlaceholder: "Search services…",
     searchClear: "Clear search",
@@ -245,7 +244,6 @@ export const COPY = {
     brandIntro:
       "في Social Hub، نقدم لك ترفيهاً عالمياً على شاشتك دون إرهاق ميزانيتك. نوفر وصولاً فورياً إلى أفضل اشتراكات OTT المميزة في عُمان بأسعار معقولة وصديقة للميزانية—لتجعل البث بسيطاً وميسور التكلفة وسلساً.",
     catalogTitle: "الاشتراكات الشائعة",
-    navSearch: "بحث",
     searchLabel: "ابحث في الاشتراكات والخدمات",
     searchPlaceholder: "ابحث عن خدمة…",
     searchClear: "مسح البحث",
