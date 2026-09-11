@@ -17,6 +17,11 @@ import Logo from "./Logo.jsx";
 import OwnerBlock from "./OwnerBlock.jsx";
 import SocialLinks from "./SocialLinks.jsx";
 import { useCart } from "../cart/CartContext.jsx";
+import {
+  useHeaderScrollState,
+  useHeroParallax,
+  useScrollReveal,
+} from "../hooks/useScrollMotion.js";
 
 function formatWhatsAppDisplay(num) {
   const digits = String(num || "").replace(/\D/g, "");
@@ -37,6 +42,9 @@ export default function Layout({ lang, setLang, t }) {
   const cartRef = useRef(null);
   const [cartOpen, setCartOpen] = useState(false);
   const { totalItems } = useCart();
+  useScrollReveal();
+  useHeroParallax();
+  useHeaderScrollState();
 
   const whatsappNumbers = useMemo(
     () =>
@@ -393,7 +401,7 @@ export default function Layout({ lang, setLang, t }) {
 
       <Outlet />
 
-      <footer className="site-footer">
+      <footer className="site-footer" data-reveal>
         <div className="container footer-grid footer-grid--compact">
           <div className="footer-brand-block">
             <strong className="footer-brand">
@@ -435,8 +443,8 @@ export default function Layout({ lang, setLang, t }) {
       {modal === "how" ? (
         <GlassModal title={t.howTitle} onClose={closeModal}>
           <ol className="how-steps">
-            {t.howSteps.map((step) => (
-              <li key={step.title}>
+            {t.howSteps.map((step, index) => (
+              <li key={step.title} data-reveal style={{ "--reveal-delay": `${index * 90}ms` }}>
                 <strong>{step.title}</strong>
                 <p>{step.body}</p>
               </li>
@@ -447,7 +455,9 @@ export default function Layout({ lang, setLang, t }) {
 
       {modal === "about" ? (
         <GlassModal title={t.aboutTitle} onClose={closeModal}>
-          <p className="modal-prose">{aboutText || t.brandIntro}</p>
+          <p className="modal-prose" data-reveal>
+            {aboutText || t.brandIntro}
+          </p>
           <OwnerBlock label={t.adminOwnerBlock} text={ownersText} />
           <SocialLinks t={t} />
         </GlassModal>
