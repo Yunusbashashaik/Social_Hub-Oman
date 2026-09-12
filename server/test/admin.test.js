@@ -58,10 +58,7 @@ describe("services + admin API", () => {
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.body.services));
     const ids = res.body.services.map((s) => s.id);
-    assert.equal(ids.includes("netflix-private"), false);
-    assert.equal(ids.includes("disney-plus"), false);
-    assert.equal(ids.includes("chatgpt-plus"), false);
-    assert.equal(ids.includes("expressvpn"), false);
+    assert.deepEqual(ids, [streamId]);
   });
 
   it("lists public settings from the database", async () => {

@@ -45,11 +45,8 @@ Price: ${priceAmount} OMR
 Please provide payment details and complete my order.`;
 }
 
-/** Fallback catalog if the API is unavailable. Admin-added services are the source of truth. */
+/** No bundled catalog. The public list is whatever Admin has saved via the API. */
 export const SERVICES = [];
-
-/** Subscriptions dropdown uses the first live services from the API. */
-export const FEATURED_SERVICE_IDS = [];
 
 export async function fetchServices() {
   const { fetchPublicServices } = await import("../lib/adminApi.js");

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  FEATURED_SERVICE_IDS,
   buildWhatsAppUrl,
   fetchServices,
   nextSupportNumber,
@@ -110,12 +109,7 @@ export default function Layout({ lang, setLang, t }) {
     return () => document.removeEventListener("pointerdown", onDoc);
   }, [cartOpen]);
 
-  const featured = useMemo(() => {
-    const byId = new Map(services.map((s) => [s.id, s]));
-    const picked = FEATURED_SERVICE_IDS.map((id) => byId.get(id)).filter(Boolean);
-    if (picked.length >= 3) return picked.slice(0, 3);
-    return services.slice(0, 3);
-  }, [services]);
+  const featured = useMemo(() => services.slice(0, 3), [services]);
 
   const openFab = useCallback(() => {
     const phone = nextSupportNumber();

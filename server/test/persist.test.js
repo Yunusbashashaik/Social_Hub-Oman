@@ -114,9 +114,9 @@ describe("admin catalog persistence", () => {
         savedAt: new Date().toISOString(),
         services: [
           {
-            id: "netflix-private",
-            nameEn: "Netflix",
-            nameAr: "نتفلكس",
+            id: "legacy-factory-item",
+            nameEn: "Legacy Item",
+            nameAr: "عنصر قديم",
             descriptionEn: "should not return",
             descriptionAr: "يجب ألا يعود",
             prices: { month: 2.5, year: 18 },
@@ -129,7 +129,7 @@ describe("admin catalog persistence", () => {
     seedDatabase();
     assert.equal(listServices().length, 0);
     assert.equal(
-      listServices().some((s) => s.id === "netflix-private"),
+      listServices().some((s) => s.id === "legacy-factory-item"),
       false,
     );
     assert.equal(getAllSettings().complaintEmail, "legacy@example.com");
