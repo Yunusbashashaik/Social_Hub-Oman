@@ -6,26 +6,16 @@ import { apiUrl } from "../lib/adminApi.js";
 export default function ServiceIcon({ service, size = "md" }) {
   const accent = service.accent || "#0055ff";
   const id = service.id || "";
-  const imageUrl = service.imageUrl;
-  const imageSrc = service.imageSrc;
-  const hasCustomImage = Boolean(service.hasCustomImage || imageSrc || imageUrl);
-  const custom = customImageSrc(service);
-  const bundled = hasCustomImage ? null : serviceImageUrl(id);
-  const [src, setSrc] = useState(custom || bundled);
-  const [failed, setFailed] = useState(!custom && !bundled);
+  const uploaded = resolveUploadedSrc(service);
+  const bundled = serviceImageUrl(id);
+  const [src, setSrc] = useState(uploaded || bundled);
+  const [failed, setFailed] = useState(false);
   const name = service.nameEn || id;
 
   useEffect(() => {
-    const nextCustom = customImageSrc({
-      id,
-      imageUrl,
-      imageSrc,
-      hasCustomImage,
-    });
-    const nextBundled = hasCustomImage ? null : serviceImageUrl(id);
-    setSrc(nextCustom || nextBundled);
-    setFailed(!nextCustom && !nextBundled);
-  }, [id, imageUrl, imageSrc, hasCustomImage]);
+    setSrc(uploaded || bundled);
+    setFailed(false);
+  }, [uploaded, bundled]);
 
   return (
     <div
@@ -43,8 +33,15 @@ export default function ServiceIcon({ service, size = "md" }) {
             loading="lazy"
             decoding="async"
             onError={() => {
-              if (custom && src !== custom) {
-                setSrc(custom);
+              const blobUrl = id
+                ? apiUrl(`/api/services/${encodeURIComponent(id)}/image`)
+                : null;
+              if (blobUrl && src !== blobUrl) {
+                setSrc(blobUrl);
+                return;
+              }
+              if (bundled && src !== bundled) {
+                setSrc(bundled);
                 return;
               }
               setFailed(true);
@@ -59,18 +56,20 @@ export default function ServiceIcon({ service, size = "md" }) {
   );
 }
 
-function customImageSrc(service) {
+function resolveUploadedSrc(service) {
   const src = service?.imageSrc || "";
   if (src.startsWith("data:") || src.startsWith("blob:")) return src;
   const url = service?.imageUrl || "";
+  if (!url) {
+    if (service?.hasCustomImage && service.id) {
+      return apiUrl(`/api/services/${encodeURIComponent(service.id)}/image`);
+    }
+    return null;
+  }
   if (url.startsWith("data:") || url.startsWith("blob:") || url.startsWith("http")) {
     return url;
   }
-  if (service?.hasCustomImage || url) {
-    if (service.id) return apiUrl(`/api/services/${encodeURIComponent(service.id)}/image`);
-    if (url) return apiUrl(url);
-  }
-  return null;
+  return apiUrl(url);
 }
 
 function renderFallback(id, accent, name) {
