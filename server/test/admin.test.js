@@ -7,17 +7,22 @@ import express from "express";
 import request from "supertest";
 import { closeDatabase, initDatabase } from "../src/db/connection.js";
 import { seedDatabase } from "../src/db/seed.js";
-import { DEFAULT_SERVICES } from "../src/config/defaultServices.js";
 import { adminRouter } from "../src/routes/admin.js";
 import { servicesRouter } from "../src/routes/services.js";
 import { settingsRouter } from "../src/routes/settings.js";
 
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-"));
+const jpeg = Buffer.from(
+  "ffd8ffe000104a46494600010100000100010000ffdb004300010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc0000b080001000101011100ffc40014100100000000000000000000000000000000ffda00080001000100003f00fbffd9",
+  "hex",
+);
 
 describe("services + admin API", () => {
   let app;
+  let token;
+  let streamId;
 
-  before(() => {
+  before(async () => {
     initDatabase(path.join(testDir, "test.db"));
     seedDatabase();
     app = express();
@@ -26,6 +31,21 @@ describe("services + admin API", () => {
     app.use("/api/services", servicesRouter);
     app.use("/api/settings", settingsRouter);
     app.use("/api/admin", adminRouter);
+
+    const login = await request(app)
+      .post("/api/admin/login")
+      .send({ username: "admin", password: "Ss$135790" });
+    token = login.body.token;
+    const created = await request(app)
+      .post("/api/admin/services")
+      .set("Authorization", `Bearer ${token}`)
+      .field("nameEn", "Fixture Stream")
+      .field("nameAr", "بث تجريبي")
+      .field("descriptionEn", "EN desc")
+      .field("descriptionAr", "AR desc")
+      .field("priceMonth", "2.5")
+      .field("priceYear", "18");
+    streamId = created.body.service.id;
   });
 
   after(() => {
@@ -33,11 +53,12 @@ describe("services + admin API", () => {
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 
-  it("lists services publicly from the database", async () => {
+  it("does not seed a factory catalog", async () => {
     const res = await request(app).get("/api/services");
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.body.services));
-    assert.ok(res.body.services.length >= 1);
+    const ids = res.body.services.map((s) => s.id);
+    assert.deepEqual(ids, [streamId]);
   });
 
   it("lists public settings from the database", async () => {
@@ -55,15 +76,8 @@ describe("services + admin API", () => {
   });
 
   it("logs in and updates a service price/description", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    assert.equal(login.status, 200);
-    assert.ok(login.body.token);
-
-    const token = login.body.token;
     const update = await request(app)
-      .put("/api/admin/services/netflix-private")
+      .put(`/api/admin/services/${streamId}`)
       .set("Authorization", `Bearer ${token}`)
       .send({
         prices: { month: 3, year: 20 },
@@ -76,17 +90,12 @@ describe("services + admin API", () => {
     assert.equal(update.body.service.descriptionEn, "Updated EN desc");
 
     const listed = await request(app).get("/api/services");
-    const item = listed.body.services.find((s) => s.id === "netflix-private");
+    const item = listed.body.services.find((s) => s.id === streamId);
     assert.equal(item.prices.month, 3);
     assert.equal(item.descriptionAr, "وصف محدث");
   });
 
   it("creates a new service that appears on the public list", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
-
     const create = await request(app)
       .post("/api/admin/services")
       .set("Authorization", `Bearer ${token}`)
@@ -112,13 +121,8 @@ describe("services + admin API", () => {
   });
 
   it("marks zero-price services as out of stock", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
-
     const update = await request(app)
-      .put("/api/admin/services/netflix-private")
+      .put(`/api/admin/services/${streamId}`)
       .set("Authorization", `Bearer ${token}`)
       .send({ prices: { month: 0, year: 0 } });
 
@@ -128,11 +132,6 @@ describe("services + admin API", () => {
   });
 
   it("updates complaint email and WhatsApp numbers in settings", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
-
     const update = await request(app)
       .put("/api/admin/settings")
       .set("Authorization", `Bearer ${token}`)
@@ -161,40 +160,22 @@ describe("services + admin API", () => {
 
   it("requires auth for updates", async () => {
     const res = await request(app)
-      .put("/api/admin/services/netflix-private")
+      .put(`/api/admin/services/${streamId}`)
       .send({ prices: { month: 9 } });
     assert.equal(res.status, 401);
   });
 
-  it("includes newly seeded catalog services", async () => {
-    const res = await request(app).get("/api/services");
-    assert.equal(res.status, 200);
-    const ids = res.body.services.map((s) => s.id);
-    assert.ok(ids.includes("disney-plus"));
-    assert.ok(ids.includes("chatgpt-plus"));
-    assert.ok(ids.includes("expressvpn"));
-    assert.ok(res.body.services.length >= DEFAULT_SERVICES.length);
-  });
-
   it("keeps a replaced service image after the upload file is removed", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
-    const jpeg = Buffer.from(
-      "ffd8ffe000104a46494600010100000100010000ffdb004300010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc0000b080001000101011100ffc40014100100000000000000000000000000000000ffda00080001000100003f00fbffd9",
-      "hex",
-    );
     const update = await request(app)
-      .put("/api/admin/services/netflix-private")
+      .put(`/api/admin/services/${streamId}`)
       .set("Authorization", `Bearer ${token}`)
-      .attach("image", jpeg, "netflix.jpg");
+      .attach("image", jpeg, "fixture.jpg");
     assert.equal(update.status, 200);
     assert.equal(update.body.service.hasCustomImage, true);
     assert.match(String(update.body.service.imageSrc || ""), /^data:image\//);
     const listed = await request(app).get("/api/services");
-    const netflix = listed.body.services.find((s) => s.id === "netflix-private");
-    assert.match(String(netflix.imageSrc || ""), /^data:image\//);
+    const item = listed.body.services.find((s) => s.id === streamId);
+    assert.match(String(item.imageSrc || ""), /^data:image\//);
     const imageUrl = update.body.service.imageUrl;
     assert.match(String(imageUrl), /\/api\/uploads\/services\//);
 
@@ -202,17 +183,12 @@ describe("services + admin API", () => {
     const filename = String(imageUrl).split("/").pop();
     fs.rmSync(path.join(SERVICE_UPLOADS_DIR, filename), { force: true });
 
-    const img = await request(app).get("/api/services/netflix-private/image");
+    const img = await request(app).get(`/api/services/${streamId}/image`);
     assert.equal(img.status, 200);
     assert.ok(Buffer.byteLength(img.body) > 0);
   });
 
   it("deletes a service from the public catalog", async () => {
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
-
     const created = await request(app)
       .post("/api/admin/services")
       .set("Authorization", `Bearer ${token}`)
@@ -240,10 +216,6 @@ describe("services + admin API", () => {
     const res = await request(app).get("/api/settings");
     assert.ok(res.body.settings.ownersEn);
 
-    const login = await request(app)
-      .post("/api/admin/login")
-      .send({ username: "admin", password: "Ss$135790" });
-    const token = login.body.token;
     const put = await request(app)
       .put("/api/admin/settings")
       .set("Authorization", `Bearer ${token}`)
@@ -261,7 +233,7 @@ describe("services + admin API", () => {
       .send({ text: "Hello" });
     assert.equal(translate.status, 401);
 
-    const del = await request(app).delete("/api/admin/services/netflix-private");
+    const del = await request(app).delete("/api/admin/services/missing-id");
     assert.equal(del.status, 401);
   });
 });

@@ -1,4 +1,3 @@
-import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import {
   bindPersist,
   hydratePersistedAdminState,
@@ -6,18 +5,20 @@ import {
   withoutPersist,
   catalogMatchesDefaults,
   settingsMatchDefaults,
+  CATALOG_GENERATION,
 } from "./persist.js";
 import {
   getServiceImageBlob,
   listServices,
   replaceAllServices,
-  seedServicesIfEmpty,
 } from "../models/Service.js";
 import {
   countSettings,
   getAllSettings,
+  getSetting,
   replaceAllSettings,
   seedSettingsIfEmpty,
+  setSetting,
 } from "../models/Settings.js";
 
 bindPersist({
@@ -30,13 +31,26 @@ bindPersist({
 });
 
 export function seedDatabase() {
-  const hydrated = hydratePersistedAdminState();
-  const servicesSeeded = withoutPersist(() => seedServicesIfEmpty(DEFAULT_SERVICES));
   const settingsSeeded = withoutPersist(() => seedSettingsIfEmpty());
-  const services = listServices();
-  const settings = getAllSettings();
-  if (!catalogMatchesDefaults(services) || !settingsMatchDefaults(settings)) {
-    persistAdminState();
+  const hydrated = hydratePersistedAdminState();
+  if (hydrated.restoredServices) {
+    setSetting("catalogGeneration", CATALOG_GENERATION);
   }
-  return { servicesSeeded, settingsSeeded, hydrated };
+
+  const gen = Number(getSetting("catalogGeneration") || 0);
+  let catalogReset = false;
+  if (gen !== CATALOG_GENERATION) {
+    withoutPersist(() => replaceAllServices([]));
+    setSetting("catalogGeneration", CATALOG_GENERATION);
+    persistAdminState();
+    catalogReset = true;
+  } else {
+    const services = listServices();
+    const settings = getAllSettings();
+    if (!catalogMatchesDefaults(services) || !settingsMatchDefaults(settings)) {
+      persistAdminState();
+    }
+  }
+
+  return { servicesSeeded: false, settingsSeeded, hydrated, catalogReset };
 }

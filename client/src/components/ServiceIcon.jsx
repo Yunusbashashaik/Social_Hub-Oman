@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { serviceImageUrl } from "../data/serviceImages.js";
 import { apiUrl } from "../lib/adminApi.js";
 
-/** Brand artwork from DB upload or static public assets, with SVG fallback. */
+/** Artwork from an admin upload, with initials fallback when none is set. */
 export default function ServiceIcon({ service, size = "md" }) {
   const accent = service.accent || "#0055ff";
   const id = service.id || "";

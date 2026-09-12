@@ -1,6 +1,3 @@
-import {
-  DEFAULT_SERVICES,
-} from "@shared/defaultServices.js";
 import { DEFAULT_SETTINGS } from "./defaultSettings.js";
 
 let supportNumbers = [...DEFAULT_SETTINGS.whatsappNumbers];
@@ -48,15 +45,8 @@ Price: ${priceAmount} OMR
 Please provide payment details and complete my order.`;
 }
 
-/** Fallback catalog if the API is unavailable. */
-export const SERVICES = structuredClone(DEFAULT_SERVICES);
-
-/** Featured names shown in the Subscriptions dropdown (first 3). */
-export const FEATURED_SERVICE_IDS = [
-  "netflix-private",
-  "youtube-premium",
-  "disney-plus",
-];
+/** No bundled catalog. The public list is whatever Admin has saved via the API. */
+export const SERVICES = [];
 
 export async function fetchServices() {
   const { fetchPublicServices } = await import("../lib/adminApi.js");
