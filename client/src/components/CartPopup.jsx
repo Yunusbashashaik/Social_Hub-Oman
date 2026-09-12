@@ -119,6 +119,7 @@ export default function CartPopup({ open, onClose, lang, t }) {
                           id: item.serviceId,
                           nameEn: item.nameEn,
                           accent: item.accent,
+                          imageUrl: item.imageUrl,
                         }}
                         size="sm"
                       />

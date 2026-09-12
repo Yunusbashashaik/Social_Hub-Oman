@@ -41,7 +41,7 @@ export default function Layout({ lang, setLang, t }) {
   const subsRef = useRef(null);
   const cartRef = useRef(null);
   const [cartOpen, setCartOpen] = useState(false);
-  const { totalItems } = useCart();
+  const { totalItems, syncFromServices } = useCart();
   useScrollReveal();
   useHeroParallax();
   useHeaderScrollState();
@@ -83,6 +83,10 @@ export default function Layout({ lang, setLang, t }) {
     window.addEventListener("gs:services-updated", onUpdate);
     return () => window.removeEventListener("gs:services-updated", onUpdate);
   }, [refreshServices]);
+
+  useEffect(() => {
+    syncFromServices(services);
+  }, [services, syncFromServices]);
 
   useEffect(() => {
     setMenuOpen(false);

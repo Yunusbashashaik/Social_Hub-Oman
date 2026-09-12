@@ -24,6 +24,26 @@ function itemKey(serviceId, duration) {
   return `${serviceId}:${duration}`;
 }
 
+function serviceSnapshot(service) {
+  const rawUrl = String(service?.imageUrl || "");
+  const uploaded =
+    rawUrl && !rawUrl.startsWith("data:") && !rawUrl.startsWith("blob:")
+      ? rawUrl
+      : "";
+  const imageUrl =
+    uploaded ||
+    (service?.id && (service.hasCustomImage || service.imageSrc)
+      ? `/api/services/${encodeURIComponent(service.id)}/image`
+      : null);
+  return {
+    serviceId: service.id,
+    nameEn: service.nameEn,
+    nameAr: service.nameAr,
+    accent: service.accent,
+    imageUrl,
+  };
+}
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => loadCart());
 
@@ -37,17 +57,16 @@ export function CartProvider({ children }) {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
         return prev.map((i) =>
-          i.key === key ? { ...i, qty: i.qty + 1, unitPrice } : i,
+          i.key === key
+            ? { ...i, ...serviceSnapshot(service), qty: i.qty + 1, unitPrice }
+            : i,
         );
       }
       return [
         ...prev,
         {
           key,
-          serviceId: service.id,
-          nameEn: service.nameEn,
-          nameAr: service.nameAr,
-          accent: service.accent,
+          ...serviceSnapshot(service),
           duration,
           unitPrice,
           qty: 1,
@@ -83,6 +102,30 @@ export function CartProvider({ children }) {
 
   const clearCart = useCallback(() => setItems([]), []);
 
+  const syncFromServices = useCallback((services) => {
+    if (!Array.isArray(services) || !services.length) return;
+    const byId = new Map(services.map((service) => [service.id, service]));
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        const service = byId.get(item.serviceId);
+        if (!service) return item;
+        const snapshot = serviceSnapshot(service);
+        if (
+          item.imageUrl === snapshot.imageUrl &&
+          item.nameEn === snapshot.nameEn &&
+          item.nameAr === snapshot.nameAr &&
+          item.accent === snapshot.accent
+        ) {
+          return item;
+        }
+        changed = true;
+        return { ...item, ...snapshot };
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
   const getQty = useCallback(
     (serviceId, duration) => {
       const found = items.find((i) => i.key === itemKey(serviceId, duration));
@@ -110,6 +153,7 @@ export function CartProvider({ children }) {
       decrement,
       removeItem,
       clearCart,
+      syncFromServices,
       getQty,
       totalItems,
       totalPrice,
@@ -123,6 +167,7 @@ export function CartProvider({ children }) {
       decrement,
       removeItem,
       clearCart,
+      syncFromServices,
       getQty,
       totalItems,
       totalPrice,
