@@ -1,11 +1,30 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   buildWhatsAppUrl,
   nextSupportNumber,
 } from "../data/catalog.js";
 import { useCart } from "../cart/CartContext.jsx";
+import { getCachedPublicServices } from "../lib/adminApi.js";
 import ServiceIcon from "./ServiceIcon.jsx";
+
+function cartIconService(item) {
+  const live = (getCachedPublicServices() || []).find((s) => s.id === item.serviceId);
+  return {
+    id: item.serviceId,
+    nameEn: item.nameEn || live?.nameEn,
+    accent: item.accent || live?.accent,
+    imageUrl: live?.imageUrl || item.imageUrl || null,
+    imageSrc: live?.imageSrc || null,
+    hasCustomImage: Boolean(
+      live?.hasCustomImage ||
+        live?.imageSrc ||
+        live?.imageUrl ||
+        item.hasCustomImage ||
+        item.imageUrl,
+    ),
+  };
+}
 
 function durationLabel(duration, t) {
   return duration === "month" ? t.month : t.year;
@@ -49,6 +68,13 @@ export default function CartPopup({ open, onClose, lang, t }) {
   const { items, increment, decrement, removeItem, totalPrice, clearCart } =
     useCart();
   const currency = lang === "ar" ? "ر.ع." : "OMR";
+  const [, refreshIcons] = useState(0);
+
+  useEffect(() => {
+    const onUpdate = () => refreshIcons((n) => n + 1);
+    window.addEventListener("gs:services-updated", onUpdate);
+    return () => window.removeEventListener("gs:services-updated", onUpdate);
+  }, []);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -114,14 +140,7 @@ export default function CartPopup({ open, onClose, lang, t }) {
                 return (
                   <li key={item.key} className="cart-item">
                     <div className="cart-item-icon" aria-hidden="true">
-                      <ServiceIcon
-                        service={{
-                          id: item.serviceId,
-                          nameEn: item.nameEn,
-                          accent: item.accent,
-                        }}
-                        size="sm"
-                      />
+                      <ServiceIcon service={cartIconService(item)} size="sm" />
                     </div>
                     <div className="cart-item-meta">
                       <strong>{name}</strong>

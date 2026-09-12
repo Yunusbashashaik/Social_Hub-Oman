@@ -20,6 +20,20 @@ function loadCart() {
   }
 }
 
+function imageFields(service) {
+  const imageUrl = service?.imageUrl;
+  const safeUrl =
+    imageUrl && !String(imageUrl).startsWith("data:") && !String(imageUrl).startsWith("blob:")
+      ? imageUrl
+      : null;
+  return {
+    imageUrl: safeUrl,
+    hasCustomImage: Boolean(
+      service?.hasCustomImage || service?.imageSrc || safeUrl,
+    ),
+  };
+}
+
 function itemKey(serviceId, duration) {
   return `${serviceId}:${duration}`;
 }
@@ -37,7 +51,9 @@ export function CartProvider({ children }) {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
         return prev.map((i) =>
-          i.key === key ? { ...i, qty: i.qty + 1, unitPrice } : i,
+          i.key === key
+            ? { ...i, qty: i.qty + 1, unitPrice, ...imageFields(service) }
+            : i,
         );
       }
       return [
@@ -48,6 +64,7 @@ export function CartProvider({ children }) {
           nameEn: service.nameEn,
           nameAr: service.nameAr,
           accent: service.accent,
+          ...imageFields(service),
           duration,
           unitPrice,
           qty: 1,
