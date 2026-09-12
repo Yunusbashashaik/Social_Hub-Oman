@@ -265,7 +265,7 @@ export async function adminTranslate(token, text) {
   return data.text;
 }
 
-const LIVE_SERVICES_KEY = "gs_live_services";
+const LIVE_SERVICES_KEY = "gs_live_services_v3";
 const LIVE_SETTINGS_KEY = "gs_live_settings";
 
 function readLiveCache(key) {

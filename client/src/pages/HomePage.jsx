@@ -171,7 +171,9 @@ export default function HomePage({ lang, t }) {
             />
           </div>
           {loadError ? <p className="catalog-note">{loadError}</p> : null}
-          {searchQuery.trim() && !visibleServices.length ? (
+          {!services.length && !loadError ? (
+            <p className="catalog-empty">{t.catalogEmpty}</p>
+          ) : searchQuery.trim() && !visibleServices.length ? (
             <p className="catalog-empty">{t.searchEmpty}</p>
           ) : (
             <ServicesSection

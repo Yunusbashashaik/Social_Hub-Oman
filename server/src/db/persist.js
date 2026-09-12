@@ -5,6 +5,8 @@ import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import { DEFAULT_SETTINGS } from "../config/defaults.js";
 
 const SNAPSHOT_NAME = "admin-state.json";
+/** Bump this to ignore old factory-catalog snapshots (Netflix, Prime, …). */
+export const CATALOG_GENERATION = 3;
 
 let source = null;
 let persistDisabled = 0;
@@ -39,6 +41,7 @@ export function writeAdminSnapshot(state) {
   if (!state) return null;
   const payload = {
     version: 1,
+    generation: CATALOG_GENERATION,
     savedAt: new Date().toISOString(),
     services: Array.isArray(state.services) ? state.services : [],
     settings: state.settings && typeof state.settings === "object" ? state.settings : {},
@@ -163,7 +166,7 @@ export function hydratePersistedAdminState() {
   let restoredSettings = false;
 
   withoutPersist(() => {
-    if (snapServices.length) {
+    if (snapServices.length && snapshot.generation === CATALOG_GENERATION) {
       const empty = currentServices.length === 0;
       const currentIsDefault = catalogMatchesDefaults(currentServices);
       const snapshotDiffers = catalogSignature(currentServices) !== catalogSignature(snapServices);
