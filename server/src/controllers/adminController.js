@@ -13,6 +13,7 @@ import {
 import { getAllSettings, updateSettings } from "../models/Settings.js";
 import { SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import { serviceImagePublicUrl } from "../middleware/upload.js";
+import { translateEnglishToArabic } from "../services/translate.js";
 
 function readUploadedImage(file) {
   if (!file) return { imageUrl: null, imageBlob: null };
@@ -199,39 +200,6 @@ export async function translateAdmin(req, res) {
     console.error("Translate failed:", err);
     res.status(502).json({ error: err.message || "Translation failed" });
   }
-}
-
-async function translateEnglishToArabic(text) {
-  const chunks = splitTranslateChunks(text);
-  const parts = [];
-  for (const chunk of chunks) {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|ar`;
-    const response = await fetch(url);
-    const data = await response.json().catch(() => ({}));
-    const translated = data?.responseData?.translatedText;
-    if (!translated) {
-      throw new Error("Translation service is unavailable");
-    }
-    parts.push(translated);
-  }
-  return parts.join("\n");
-}
-
-function splitTranslateChunks(text) {
-  if (text.length <= 450) return [text];
-  const lines = text.split("\n");
-  const chunks = [];
-  let current = "";
-  for (const line of lines) {
-    if ((current + "\n" + line).length > 450 && current) {
-      chunks.push(current);
-      current = line;
-    } else {
-      current = current ? `${current}\n${line}` : line;
-    }
-  }
-  if (current) chunks.push(current);
-  return chunks;
 }
 
 export function getAdminSettings(_req, res) {
