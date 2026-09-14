@@ -53,12 +53,16 @@ describe("services + admin API", () => {
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 
-  it("does not seed a factory catalog", async () => {
+  it("seeds the hardcoded catalog and keeps admin-added services on top", async () => {
     const res = await request(app).get("/api/services");
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.body.services));
     const ids = res.body.services.map((s) => s.id);
-    assert.deepEqual(ids, [streamId]);
+    assert.equal(ids.length, 43);
+    assert.equal(ids[0], streamId);
+    assert.ok(ids.includes("netflix-prime-combo"));
+    const combo = res.body.services.find((s) => s.id === "netflix-prime-combo");
+    assert.equal(combo.imageUrl, "/service-photos/01.jpg");
   });
 
   it("lists public settings from the database", async () => {

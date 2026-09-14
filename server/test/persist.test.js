@@ -6,7 +6,7 @@ import path from "path";
 import { closeDatabase, initDatabase } from "../src/db/connection.js";
 import { CATALOG_GENERATION } from "../src/db/persist.js";
 import { seedDatabase } from "../src/db/seed.js";
-import { insertService, listServices, updateService } from "../src/models/Service.js";
+import { deleteService, insertService, listServices, updateService } from "../src/models/Service.js";
 import { getAllSettings, getSetting, setSetting, updateSettings } from "../src/models/Settings.js";
 
 function tempDir() {
@@ -33,14 +33,16 @@ afterEach(() => {
 });
 
 describe("admin catalog persistence", () => {
-  it("starts with an empty catalog and keeps admin-added services after restart", () => {
+  it("starts with the hardcoded catalog and keeps admin-added services after restart", () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
     const firstSeed = seedDatabase();
-    assert.equal(listServices().length, 0);
+    assert.equal(listServices().length, 42);
+    assert.equal(listServices()[0].id, "netflix-prime-combo");
     assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
     assert.equal(firstSeed.catalogReset, true);
+    assert.equal(firstSeed.servicesSeeded, true);
 
     const created = addAdminService();
     updateService(created.id, { prices: { month: 7.5, year: 40 } });
@@ -57,6 +59,7 @@ describe("admin catalog persistence", () => {
     assert.equal(afterRestart.servicesSeeded, false);
     assert.equal(afterRestart.settingsSeeded, false);
     assert.equal(afterRestart.catalogReset, false);
+    assert.equal(listServices().length, 43);
 
     const again = listServices().find((s) => s.id === created.id);
     assert.equal(again.prices.month, 7.5);
@@ -90,8 +93,8 @@ describe("admin catalog persistence", () => {
     initDatabase(dbPath);
     const seeded = seedDatabase();
     assert.equal(seeded.hydrated.restored, true);
-    assert.equal(seeded.servicesSeeded, false);
     assert.equal(seeded.catalogReset, false);
+    assert.equal(listServices().length, 43);
 
     const restored = listServices().find((s) => s.id === created.id);
     assert.equal(restored.prices.month, 9);
@@ -127,7 +130,7 @@ describe("admin catalog persistence", () => {
     );
     initDatabase(dbPath);
     seedDatabase();
-    assert.equal(listServices().length, 0);
+    assert.equal(listServices().length, 42);
     assert.equal(
       listServices().some((s) => s.id === "legacy-factory-item"),
       false,
@@ -151,7 +154,34 @@ describe("admin catalog persistence", () => {
     const after = seedDatabase();
     assert.equal(after.catalogReset, true);
     assert.equal(listServices().some((s) => s.id === created.id), true);
+    assert.equal(listServices().length, 43);
     assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
+
+    closeDatabase();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("puts a deleted hardcoded service back on the next boot without wiping admin edits", () => {
+    const dir = tempDir();
+    const dbPath = path.join(dir, "store.db");
+    initDatabase(dbPath);
+    seedDatabase();
+    const created = addAdminService();
+    updateService(created.id, { prices: { month: 3, year: 20 } });
+    updateService("netflix-prime-combo", { prices: { month: 9, year: 99 } });
+    deleteService("prime-shared");
+    assert.equal(listServices().some((s) => s.id === "prime-shared"), false);
+
+    closeDatabase();
+    initDatabase(dbPath);
+    seedDatabase();
+    assert.ok(listServices().some((s) => s.id === "prime-shared"));
+    const combo = listServices().find((s) => s.id === "netflix-prime-combo");
+    assert.equal(combo.prices.month, 9);
+    assert.equal(combo.prices.year, 99);
+    const extra = listServices().find((s) => s.id === created.id);
+    assert.equal(extra.prices.month, 3);
+    assert.equal(listServices().length, 43);
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });

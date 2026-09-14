@@ -24,9 +24,10 @@ describe("JSON file database fallback", () => {
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 
-  it("starts with an empty catalog on the JSON engine", () => {
+  it("starts with the hardcoded catalog on the JSON engine", () => {
     assert.equal(getDbEngine(), "json");
-    assert.equal(listServices().length, 0);
+    assert.equal(listServices().length, 42);
+    assert.equal(listServices()[0].id, "netflix-prime-combo");
   });
 
   it("creates a service and updates settings", () => {

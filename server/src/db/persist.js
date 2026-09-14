@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import { getActiveStorePath } from "./connection.js";
 import { DEFAULT_SETTINGS } from "../config/defaults.js";
 
@@ -96,15 +97,23 @@ export function readAdminSnapshot() {
 }
 
 function serviceSignature(service) {
+  const month = Number(service.prices?.month);
+  const year = Number(service.prices?.year);
+  const outOfStock =
+    service.outOfStock ||
+    (Number.isFinite(month) && month === 0) ||
+    (Number.isFinite(year) && year === 0)
+      ? 1
+      : 0;
   return [
     service.id,
-    Number(service.prices?.month),
-    Number(service.prices?.year),
+    outOfStock ? 0 : month,
+    outOfStock ? 0 : year,
     String(service.nameEn || ""),
     String(service.nameAr || ""),
     String(service.descriptionEn || ""),
     String(service.descriptionAr || ""),
-    service.outOfStock ? 1 : 0,
+    outOfStock,
   ].join("|");
 }
 
@@ -116,7 +125,7 @@ function catalogSignature(services) {
 }
 
 function defaultCatalogSignature() {
-  return catalogSignature([]);
+  return catalogSignature(DEFAULT_SERVICES);
 }
 
 function settingsSignature(settings) {
