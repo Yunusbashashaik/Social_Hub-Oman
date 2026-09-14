@@ -30,7 +30,7 @@ npm start   # serves built client + API on port 3001
 
 ### Dynamic database (SQLite)
 
-Admin edits and public catalog/settings are stored in **`server/data/globalstore.db`** (the `.db` file is not on GitHub). The empty `server/data/` folders are in the repo so they exist after you publish; Node writes the database and photos there when the app starts. Every visitor hitting the Node API sees the same live data.
+Admin edits and public catalog/settings are stored **outside the GitHub folder** so a new publish does not erase them. Default path is **`socialhub-oman-data/` next to the app folder** (sibling of `app.js`), not inside `server/`. Photos and English/Arabic descriptions live in that database. Override with `DATA_DIR` or `DATABASE_PATH`. Every visitor hitting the Node API sees the same live data.
 
 Optional env:
 
@@ -80,7 +80,7 @@ If the website and API use different URLs, edit `client/public/runtime-config.js
 window.__GLOBALSTORE_CONFIG__ = { apiUrl: "https://your-node-api-url" };
 ```
 
-Keep `server/data/` on a persistent disk so SQLite and uploads survive restarts.
+Keep **`socialhub-oman-data/`** (one folder above the GitHub app) so SQLite and uploads survive GitHub publishes. Do not delete that folder. `GET /api/health` shows `dataDir` and `services` count.
 
 ### Complaint email
 
@@ -110,4 +110,4 @@ Pushes to **`main`** run [`.github/workflows/deploy-pages.yml`](.github/workflow
 
 If the workflow has not run yet, go to **Actions** → **Deploy to GitHub Pages** → **Run workflow**.
 
-The homepage has **no bundled catalog**. If the API is unavailable it stays empty until Admin adds services on the Node server (`npm start` on a host such as Render or GoDaddy Node). Point that host at a persistent disk so `server/data/globalstore.db` survives restarts.
+The homepage has **no bundled catalog**. If the API is unavailable it stays empty until Admin adds services on the Node server (`npm start` on a host such as Render or GoDaddy Node). Live Admin data is stored in `socialhub-oman-data/` next to the app folder so a GitHub publish does not wipe it.

@@ -7,7 +7,7 @@ import { closeDatabase, initDatabase } from "../src/db/connection.js";
 import { CATALOG_GENERATION } from "../src/db/persist.js";
 import { seedDatabase } from "../src/db/seed.js";
 import { insertService, listServices, updateService } from "../src/models/Service.js";
-import { getAllSettings, getSetting, updateSettings } from "../src/models/Settings.js";
+import { getAllSettings, getSetting, setSetting, updateSettings } from "../src/models/Settings.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "gs-persist-"));
@@ -133,6 +133,25 @@ describe("admin catalog persistence", () => {
       false,
     );
     assert.equal(getAllSettings().complaintEmail, "legacy@example.com");
+
+    closeDatabase();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("keeps admin-added services if catalog generation is missing after a restart", () => {
+    const dir = tempDir();
+    const dbPath = path.join(dir, "store.db");
+    initDatabase(dbPath);
+    seedDatabase();
+    const created = addAdminService();
+    setSetting("catalogGeneration", 0);
+
+    closeDatabase();
+    initDatabase(dbPath);
+    const after = seedDatabase();
+    assert.equal(after.catalogReset, true);
+    assert.equal(listServices().some((s) => s.id === created.id), true);
+    assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });

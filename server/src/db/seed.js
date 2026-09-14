@@ -40,7 +40,6 @@ export function seedDatabase() {
   const gen = Number(getSetting("catalogGeneration") || 0);
   let catalogReset = false;
   if (gen !== CATALOG_GENERATION) {
-    withoutPersist(() => replaceAllServices([]));
     setSetting("catalogGeneration", CATALOG_GENERATION);
     persistAdminState();
     catalogReset = true;

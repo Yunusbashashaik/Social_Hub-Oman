@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getDbEngine, initDatabase, UPLOADS_DIR } from "./db/connection.js";
+import { DATA_DIR, getActiveStorePath, getDbEngine, initDatabase, UPLOADS_DIR } from "./db/connection.js";
 import { getPersistStatus } from "./db/persist.js";
 import { seedDatabase } from "./db/seed.js";
 import { countServices } from "./models/Service.js";
@@ -18,6 +18,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 initDatabase();
 seedDatabase();
+console.log(`Admin data directory: ${DATA_DIR}`);
 
 const app = express();
 app.set("trust proxy", 1);
@@ -31,6 +32,8 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     service: "global-store-api",
     db: getDbEngine(),
+    dataDir: DATA_DIR,
+    databasePath: getActiveStorePath(),
     services: countServices(),
     complaintEmail: getAllSettings().complaintEmail,
     snapshotSavedAt: persist.snapshotSavedAt,

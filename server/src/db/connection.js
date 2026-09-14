@@ -6,9 +6,60 @@ import { JsonDatabase } from "./jsonDb.js";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const DATA_DIR = path.join(__dirname, "..", "..", "data");
-export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-export const SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
+
+/** Git checkout root (folder that contains `server/` and `app.js`). */
+export const APP_ROOT = path.join(__dirname, "..", "..", "..");
+
+const LEGACY_DATA_DIR = path.join(APP_ROOT, "server", "data");
+const DURABLE_DATA_DIR = path.join(APP_ROOT, "..", "socialhub-oman-data");
+
+function canWriteDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function copyIfMissing(fromPath, toPath) {
+  if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return;
+  fs.mkdirSync(path.dirname(toPath), { recursive: true });
+  fs.copyFileSync(fromPath, toPath);
+}
+
+function migrateLegacyData(legacyDir, durableDir) {
+  const files = [
+    "globalstore.db",
+    "globalstore.db-wal",
+    "globalstore.db-shm",
+    "globalstore.json",
+    "admin-state.json",
+    "complaints.jsonl",
+  ];
+  for (const name of files) {
+    copyIfMissing(path.join(legacyDir, name), path.join(durableDir, name));
+  }
+  const fromUploads = path.join(legacyDir, "uploads");
+  const toUploads = path.join(durableDir, "uploads");
+  if (fs.existsSync(fromUploads) && !fs.existsSync(toUploads)) {
+    fs.cpSync(fromUploads, toUploads, { recursive: true });
+  }
+}
+
+export function resolveDataDir() {
+  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
+  if (canWriteDir(DURABLE_DATA_DIR)) {
+    migrateLegacyData(LEGACY_DATA_DIR, DURABLE_DATA_DIR);
+    return DURABLE_DATA_DIR;
+  }
+  return LEGACY_DATA_DIR;
+}
+
+export let DATA_DIR = resolveDataDir();
+export let UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+export let SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
 
 const SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS services (
@@ -53,6 +104,14 @@ let db;
 let activeDbPath;
 let dbEngine = "none";
 
+function bindDataDir(dir) {
+  DATA_DIR = dir;
+  UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+  SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(SERVICE_UPLOADS_DIR, { recursive: true });
+}
+
 export function getDbPath() {
   return process.env.DATABASE_PATH || path.join(DATA_DIR, "globalstore.db");
 }
@@ -86,9 +145,7 @@ function migrateSqlite(sqlite) {
 }
 
 export function initDatabase(dbPath = getDbPath(), options = {}) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.mkdirSync(SERVICE_UPLOADS_DIR, { recursive: true });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  bindDataDir(path.dirname(path.resolve(dbPath)));
 
   if (db) {
     try {
@@ -119,6 +176,7 @@ export function initDatabase(dbPath = getDbPath(), options = {}) {
     options.jsonPath ||
     process.env.JSON_DATABASE_PATH ||
     path.join(DATA_DIR, "globalstore.json");
+  bindDataDir(path.dirname(path.resolve(jsonPath)));
   db = new JsonDatabase(jsonPath);
   dbEngine = "json";
   activeDbPath = jsonPath;
