@@ -11,7 +11,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const APP_ROOT = path.join(__dirname, "..", "..", "..");
 
 const LEGACY_DATA_DIR = path.join(APP_ROOT, "server", "data");
-const DURABLE_DATA_DIR = path.join(APP_ROOT, "..", "socialhub-oman-data");
+const ROOT_HOST_DATA_DIR = "/root/socialhub-oman-data";
+
+export function defaultDurableDataDir(appRoot = APP_ROOT) {
+  const parent = path.resolve(appRoot, "..");
+  const fsRoot = path.parse(path.resolve(appRoot)).root;
+  if (parent === fsRoot || parent === path.sep) {
+    return path.join(path.resolve(appRoot), "socialhub-oman-data");
+  }
+  return path.join(parent, "socialhub-oman-data");
+}
 
 function canWriteDir(dir) {
   try {
@@ -50,9 +59,11 @@ function migrateLegacyData(legacyDir, durableDir) {
 
 export function resolveDataDir() {
   if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
-  if (canWriteDir(DURABLE_DATA_DIR)) {
-    migrateLegacyData(LEGACY_DATA_DIR, DURABLE_DATA_DIR);
-    return DURABLE_DATA_DIR;
+  const candidates = [ROOT_HOST_DATA_DIR, defaultDurableDataDir()];
+  for (const dir of candidates) {
+    if (!canWriteDir(dir)) continue;
+    migrateLegacyData(LEGACY_DATA_DIR, dir);
+    return dir;
   }
   return LEGACY_DATA_DIR;
 }

@@ -30,7 +30,7 @@ npm start   # serves built client + API on port 3001
 
 ### Dynamic database (SQLite)
 
-Admin edits and public catalog/settings are stored **outside the GitHub folder** so a new publish does not erase them. Default path is **`socialhub-oman-data/` next to the app folder** (sibling of `app.js`), not inside `server/`. Photos and English/Arabic descriptions live in that database. Override with `DATA_DIR` or `DATABASE_PATH`. Every visitor hitting the Node API sees the same live data.
+Admin edits and public catalog/settings are stored **outside the GitHub file set** so a new publish does not erase them. On a `/root` install the live folder is **`/root/socialhub-oman-data`**. If the app sits in a subfolder of `/root`, that same `/root/socialhub-oman-data` sibling is used. Override with `DATA_DIR` or `DATABASE_PATH`. Every visitor hitting the Node API sees the same live data.
 
 Optional env:
 
@@ -57,17 +57,18 @@ Admin login needs a **running Node app**. If `https://YOUR-DOMAIN/api/health` do
 **cPanel Application Manager (Passenger)**
 
 1. Setup → Application Manager → Register Application  
-2. Application root = this repo folder  
+2. Application root = **`/root`** (clone or extract this repo so `app.js` is `/root/app.js`)  
 3. Application URL = your domain (or subdomain) **root**, not a `/public_html` static copy  
 4. Application startup file: `app.js`  
 5. Node.js version: 20+  
-6. In the app directory:
+6. In `/root`:
    ```bash
+   cd /root
    npm install
    npm run build
    ```
 7. Restart the application  
-8. Visit `https://YOUR-DOMAIN/api/health` — you must see JSON `ok: true`  
+8. Visit `https://YOUR-DOMAIN/api/health` — you must see JSON `ok: true` and `dataDir` of `/root/socialhub-oman-data`  
 9. Then sign in with `admin` / `Ss$135790`
 
 Do **not** FTP only `client/dist` into `public_html`. That is static hosting and `/api/health` will 404.
@@ -80,7 +81,7 @@ If the website and API use different URLs, edit `client/public/runtime-config.js
 window.__GLOBALSTORE_CONFIG__ = { apiUrl: "https://your-node-api-url" };
 ```
 
-Keep **`socialhub-oman-data/`** (one folder above the GitHub app) so SQLite and uploads survive GitHub publishes. Do not delete that folder. `GET /api/health` shows `dataDir` and `services` count.
+Keep **`/root/socialhub-oman-data`** so SQLite and uploads survive GitHub publishes into `/root`. Do not delete that folder. `GET /api/health` shows `dataDir` and `services` count.
 
 ### Complaint email
 
@@ -110,4 +111,4 @@ Pushes to **`main`** run [`.github/workflows/deploy-pages.yml`](.github/workflow
 
 If the workflow has not run yet, go to **Actions** → **Deploy to GitHub Pages** → **Run workflow**.
 
-The homepage has **no bundled catalog**. If the API is unavailable it stays empty until Admin adds services on the Node server (`npm start` on a host such as Render or GoDaddy Node). Live Admin data is stored in `socialhub-oman-data/` next to the app folder so a GitHub publish does not wipe it.
+The homepage has **no bundled catalog**. If the API is unavailable it stays empty until Admin adds services on the Node server (`npm start` on a host such as Render or GoDaddy Node). Live Admin data is stored in `/root/socialhub-oman-data` when the app runs from `/root`.
