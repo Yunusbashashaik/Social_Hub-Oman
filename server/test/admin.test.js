@@ -63,6 +63,8 @@ describe("services + admin API", () => {
     assert.ok(ids.includes("netflix-prime-combo"));
     const combo = res.body.services.find((s) => s.id === "netflix-prime-combo");
     assert.equal(combo.imageUrl, "/service-photos/01.jpg");
+    const spotify = res.body.services.find((s) => s.id === "spotify-premium");
+    assert.equal(spotify.imageUrl, "/service-photos/21.jpg");
   });
 
   it("lists public settings from the database", async () => {

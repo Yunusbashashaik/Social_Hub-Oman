@@ -40,6 +40,15 @@ describe("admin catalog persistence", () => {
     const firstSeed = seedDatabase();
     assert.equal(listServices().length, 42);
     assert.equal(listServices()[0].id, "netflix-prime-combo");
+    assert.equal(
+      listServices().find((s) => s.id === "spotify-premium").imageUrl,
+      "/service-photos/21.jpg",
+    );
+    assert.equal(
+      listServices().find((s) => s.id === "tiktok-usa").imageUrl,
+      "/service-photos/40.jpg",
+    );
+    assert.equal(listServices().find((s) => s.id === "esim-travel").imageUrl, null);
     assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
     assert.equal(firstSeed.catalogReset, true);
     assert.equal(firstSeed.servicesSeeded, true);

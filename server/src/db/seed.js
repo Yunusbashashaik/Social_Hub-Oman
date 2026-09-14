@@ -5,6 +5,7 @@ import {
   listServices,
   replaceAllServices,
   seedServicesIfEmpty,
+  updateService,
 } from "../models/Service.js";
 import {
   countSettings,
@@ -48,6 +49,28 @@ function ensureHardcodedServices() {
   return added;
 }
 
+function hasCustomArtwork(row) {
+  if (getServiceImageBlob(row.id)) return true;
+  const url = String(row.imageUrl || "");
+  if (!url) return false;
+  return url.startsWith("/api/uploads/") || url.startsWith("data:") || url.startsWith("blob:");
+}
+
+/** Fill bundled photos onto hardcoded rows that still have none. Do not replace Admin uploads. */
+function applyDefaultServicePhotos() {
+  const byId = new Map(DEFAULT_SERVICES.map((row) => [row.id, row]));
+  let updated = 0;
+  withoutPersist(() => {
+    listServices().forEach((row) => {
+      const baked = byId.get(row.id);
+      if (!baked?.imageUrl || hasCustomArtwork(row) || row.imageUrl) return;
+      updateService(row.id, { imageUrl: baked.imageUrl }, { persist: false });
+      updated += 1;
+    });
+  });
+  return updated;
+}
+
 export function seedDatabase() {
   const settingsSeeded = withoutPersist(() => seedSettingsIfEmpty());
   const servicesSeededEmpty = withoutPersist(() =>
@@ -60,6 +83,7 @@ export function seedDatabase() {
   }
 
   const restoredMissing = ensureHardcodedServices();
+  const photosFilled = applyDefaultServicePhotos();
   const servicesSeeded = Boolean(servicesSeededEmpty || restoredMissing);
 
   const gen = Number(getSetting("catalogGeneration") || 0);
@@ -68,7 +92,7 @@ export function seedDatabase() {
     setSetting("catalogGeneration", CATALOG_GENERATION);
     persistAdminState();
     catalogReset = true;
-  } else if (servicesSeededEmpty || restoredMissing) {
+  } else if (servicesSeededEmpty || restoredMissing || photosFilled) {
     persistAdminState();
   } else {
     const services = listServices();
