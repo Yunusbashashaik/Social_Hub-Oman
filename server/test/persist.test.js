@@ -48,7 +48,14 @@ describe("admin catalog persistence", () => {
       listServices().find((s) => s.id === "tiktok-usa").imageUrl,
       "/service-photos/40.jpg",
     );
-    assert.equal(listServices().find((s) => s.id === "esim-travel").imageUrl, null);
+    assert.equal(
+      listServices().find((s) => s.id === "esim-travel").imageUrl,
+      "/service-photos/41.jpg",
+    );
+    assert.equal(
+      listServices().find((s) => s.id === "whatsapp-number").imageUrl,
+      "/service-photos/42.jpg",
+    );
     assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
     assert.equal(firstSeed.catalogReset, true);
     assert.equal(firstSeed.servicesSeeded, true);

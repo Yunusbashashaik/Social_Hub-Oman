@@ -65,6 +65,8 @@ describe("services + admin API", () => {
     assert.equal(combo.imageUrl, "/service-photos/01.jpg");
     const spotify = res.body.services.find((s) => s.id === "spotify-premium");
     assert.equal(spotify.imageUrl, "/service-photos/21.jpg");
+    const esim = res.body.services.find((s) => s.id === "esim-travel");
+    assert.equal(esim.imageUrl, "/service-photos/41.jpg");
   });
 
   it("lists public settings from the database", async () => {
