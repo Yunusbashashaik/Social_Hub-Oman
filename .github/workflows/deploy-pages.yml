@@ -1,7 +1,8 @@
 name: Deploy to GitHub Pages
 
-# https://yunusbashashaik.github.io/Social_Hub-Oman/
-# Pages setting: Deploy from a branch → gh-pages → / (root)
+# Store URL: https://yunusbashashaik.github.io/Social_Hub-Oman/
+# Pages may be "main / (root)" or "gh-pages / (root)" or GitHub Actions.
+# This job publishes all three so a 404 cannot come from a missing index.html.
 
 on:
   push:
@@ -10,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages-deploy
@@ -38,10 +41,41 @@ jobs:
           cp client/dist/index.html client/dist/404.html
           touch client/dist/.nojekyll
 
-      - name: Publish to gh-pages branch (root only)
+      - name: Copy built site to repository root (Pages source: main /)
+        run: |
+          cp client/dist/index.html index.html
+          cp client/dist/index.html 404.html
+          touch .nojekyll
+          rm -rf assets
+          cp -a client/dist/assets assets
+          rm -rf service-photos
+          cp -a client/dist/service-photos service-photos
+          for f in favicon.ico favicon.jpg hero-wallpaper-hd.jpg hero-wallpaper.jpg logo.jpg runtime-config.js sitemap.xml wallpaper-source.jpg; do
+            if [ -f "client/dist/$f" ]; then cp "client/dist/$f" "$f"; fi
+          done
+
+      - name: Commit Pages files on main
+        if: github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "[skip ci] Refresh GitHub Pages files on main"
+          file_pattern: index.html 404.html .nojekyll assets service-photos favicon.ico favicon.jpg hero-wallpaper-hd.jpg hero-wallpaper.jpg logo.jpg runtime-config.js sitemap.xml wallpaper-source.jpg
+
+      - name: Publish to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./client/dist
           publish_branch: gh-pages
           force_orphan: true
+
+      - uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - uses: actions/upload-pages-artifact@v3
+        continue-on-error: true
+        with:
+          path: ./client/dist
+
+      - uses: actions/deploy-pages@v4
+        continue-on-error: true

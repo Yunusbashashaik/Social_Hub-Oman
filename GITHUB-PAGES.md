@@ -8,9 +8,22 @@
 
 ## How deploy works
 
-Pushing to `main` runs **Deploy to GitHub Pages**, which builds the client and publishes a clean orphan commit to the `gh-pages` branch (root only). GitHub then serves that branch.
+Pushing to `main` builds the client and publishes it three ways:
 
-Do **not** keep a “Deploy static content to Pages” workflow that uploads the whole repo — it fights the real deploy and can leave Pages stuck in `building`.
+1. **`index.html` at the root of `main`** — this matches Pages set to **Deploy from a branch → `main` → `/ (root)`**
+2. The **`gh-pages`** branch (folder `/ (root)`)
+3. **GitHub Actions** Pages (if that source is selected)
+
+### Preferred Pages setting
+
+1. Open **https://github.com/Yunusbashashaik/Social_Hub-Oman/settings/pages**
+2. **Source:** Deploy from a branch
+3. **Branch:** `main` **or** `gh-pages` · **Folder:** `/ (root)`
+4. Save, wait 1–2 minutes, hard-refresh:
+
+   **https://yunusbashashaik.github.io/Social_Hub-Oman/**
+
+Do **not** open `https://yunusbashashaik.github.io/` — that user site has no `index.html` and always 404s. The store is the project URL above (`/Social_Hub-Oman/`).
 
 ## If Actions shows “pages build and deployment” stuck / in progress
 
