@@ -2,7 +2,17 @@ node_modules/
 dist/
 .env
 .env.local
-server/data/
+# Live catalog/photos (created on the Node host). Keep the empty folders in git.
+server/data/**
+!server/data/.gitkeep
+!server/data/uploads/
+!server/data/uploads/.gitkeep
+!server/data/uploads/services/
+!server/data/uploads/services/.gitkeep
+*.db
+*.db-shm
+*.db-wal
+admin-state.json
 *.log
 .DS_Store
 *.webp

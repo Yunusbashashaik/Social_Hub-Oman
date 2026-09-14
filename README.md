@@ -30,7 +30,7 @@ npm start   # serves built client + API on port 3001
 
 ### Dynamic database (SQLite)
 
-Admin edits and public catalog/settings are stored in **`server/data/globalstore.db`** (not GitHub-tracked static files). Every visitor hitting the Node API sees the same live data.
+Admin edits and public catalog/settings are stored in **`server/data/globalstore.db`** (the `.db` file is not on GitHub). The empty `server/data/` folders are in the repo so they exist after you publish; Node writes the database and photos there when the app starts. Every visitor hitting the Node API sees the same live data.
 
 Optional env:
 
