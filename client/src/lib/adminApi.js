@@ -1,4 +1,5 @@
 import { SERVICES } from "../data/catalog.js";
+import { filterPublicServices } from "@shared/offers.js";
 
 function trimSlash(value) {
   return String(value || "").replace(/\/$/, "");
@@ -177,6 +178,10 @@ export async function adminCreateService(token, payload, imageFile) {
   formData.append("descriptionAr", payload.descriptionAr || "");
   formData.append("priceMonth", String(payload.prices?.month ?? ""));
   formData.append("priceYear", String(payload.prices?.year ?? ""));
+  formData.append("offerType", payload.offerType || "none");
+  if (payload.offerExpiresAt) {
+    formData.append("offerExpiresAt", payload.offerExpiresAt);
+  }
   if (payload.outOfStock !== undefined) {
     formData.append("outOfStock", String(Boolean(payload.outOfStock)));
   }
@@ -209,6 +214,12 @@ export async function adminSaveService(token, id, payload, imageFile) {
     }
     if (payload.outOfStock !== undefined) {
       formData.append("outOfStock", String(Boolean(payload.outOfStock)));
+    }
+    if (payload.offerType !== undefined) {
+      formData.append("offerType", payload.offerType || "none");
+    }
+    if (payload.offerExpiresAt !== undefined) {
+      formData.append("offerExpiresAt", payload.offerExpiresAt || "");
     }
     formData.append("image", imageFile);
     const data = await requestJson(`/api/admin/services/${id}`, {
@@ -311,8 +322,9 @@ export async function fetchPublicServices() {
     try {
       const data = await requestJson("/api/services");
       if (Array.isArray(data.services)) {
-        writeLiveCache(LIVE_SERVICES_KEY, data.services);
-        return data.services;
+        const publicList = filterPublicServices(data.services);
+        writeLiveCache(LIVE_SERVICES_KEY, publicList);
+        return publicList;
       }
     } catch {
       /* fall through to last live catalog */

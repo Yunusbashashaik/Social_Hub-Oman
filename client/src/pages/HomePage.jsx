@@ -4,11 +4,13 @@ import ServicesSection from "../components/ServicesSection.jsx";
 import { UiIcon } from "../components/UiIcon.jsx";
 import ViewPlansModal from "../components/ViewPlansModal.jsx";
 import { fetchServices, filterServices } from "../data/catalog.js";
+import { filterPublicServices } from "@shared/offers.js";
 import { getCachedPublicServices } from "../lib/adminApi.js";
 import { wallpaperUrl } from "../data/serviceImages.js";
 
 export default function HomePage({ lang, t }) {
   const [services, setServices] = useState(getCachedPublicServices);
+  const [now, setNow] = useState(() => Date.now());
   const [loadError, setLoadError] = useState("");
   const [plansService, setPlansService] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,9 +18,15 @@ export default function HomePage({ lang, t }) {
   const wallpaper = wallpaperUrl();
 
   const visibleServices = useMemo(
-    () => filterServices(services, searchQuery),
-    [services, searchQuery],
+    () => filterServices(filterPublicServices(services, now), searchQuery),
+    [services, searchQuery, now],
   );
+
+  useEffect(() => {
+    if (plansService && !visibleServices.some((row) => row.id === plansService.id)) {
+      setPlansService(null);
+    }
+  }, [plansService, visibleServices]);
 
   useEffect(() => {
     // Keep first paint at the hero — never auto-jump to Popular Subscriptions.
@@ -59,6 +67,11 @@ export default function HomePage({ lang, t }) {
       window.removeEventListener("gs:services-updated", load);
     };
   }, [t.servicesLoadFallback]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const headline = t.heroHeadlineParts || {
     before: t.heroHeadline,

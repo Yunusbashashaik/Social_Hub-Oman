@@ -244,4 +244,71 @@ describe("services + admin API", () => {
     const del = await request(app).delete("/api/admin/services/missing-id");
     assert.equal(del.status, 401);
   });
+
+  it("creates a regular service without an offer", async () => {
+    const created = await request(app)
+      .post("/api/admin/services")
+      .set("Authorization", `Bearer ${token}`)
+      .field("nameEn", "Plain Service")
+      .field("descriptionEn", "EN")
+      .field("descriptionAr", "AR")
+      .field("priceMonth", "3")
+      .field("priceYear", "20");
+    assert.equal(created.status, 201);
+    assert.equal(created.body.service.offerType, "none");
+    assert.equal(created.body.service.offerExpiresAt, null);
+    const listed = await request(app).get("/api/services");
+    const item = listed.body.services.find((s) => s.id === created.body.service.id);
+    assert.ok(item);
+    assert.equal(item.offerType, "none");
+    assert.equal(item.offerExpiresAt, null);
+  });
+
+  it("creates an offer service and hides it from the public list after expiry", async () => {
+    const created = await request(app)
+      .post("/api/admin/services")
+      .set("Authorization", `Bearer ${token}`)
+      .field("nameEn", "Flash Offer")
+      .field("descriptionEn", "EN")
+      .field("descriptionAr", "AR")
+      .field("priceMonth", "1")
+      .field("priceYear", "8")
+      .field("offerType", "special")
+      .field("offerExpiresAt", new Date(Date.now() + 120_000).toISOString());
+    assert.equal(created.status, 201);
+    assert.equal(created.body.service.offerType, "special");
+    assert.ok(created.body.service.offerExpiresAt);
+
+    const live = await request(app).get("/api/services");
+    const publicItem = live.body.services.find((s) => s.id === created.body.service.id);
+    assert.ok(publicItem);
+    assert.equal(publicItem.offerType, "special");
+    assert.ok(publicItem.offerExpiresAt);
+    assert.ok(Date.parse(publicItem.offerExpiresAt) > Date.now());
+
+    const expired = await request(app)
+      .put(`/api/admin/services/${created.body.service.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        offerType: "special",
+        offerExpiresAt: new Date(Date.now() - 1000).toISOString(),
+      });
+    assert.equal(expired.status, 200);
+
+    const after = await request(app).get("/api/services");
+    assert.equal(
+      after.body.services.some((s) => s.id === created.body.service.id),
+      false,
+    );
+    assert.ok(after.body.services.some((s) => s.id === streamId));
+
+    const adminList = await request(app)
+      .get("/api/admin/services")
+      .set("Authorization", `Bearer ${token}`);
+    const adminItem = adminList.body.services.find(
+      (s) => s.id === created.body.service.id,
+    );
+    assert.ok(adminItem);
+    assert.equal(adminItem.offerType, "special");
+  });
 });

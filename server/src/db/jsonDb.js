@@ -165,6 +165,8 @@ export class JsonDatabase {
         image_url: p.imageUrl,
         image_blob: p.imageBlob || null,
         out_of_stock: p.outOfStock,
+        offer_type: p.offerType || "none",
+        offer_expires_at: p.offerExpiresAt || null,
         sort_order: p.sortOrder,
         created_at: nowIso(),
         updated_at: nowIso(),
@@ -193,6 +195,9 @@ export class JsonDatabase {
         price_month: p.priceMonth,
         price_year: p.priceYear,
         out_of_stock: p.outOfStock,
+        offer_type: p.offerType ?? current.offer_type ?? "none",
+        offer_expires_at:
+          p.offerExpiresAt === undefined ? current.offer_expires_at || null : p.offerExpiresAt,
         updated_at: nowIso(),
       };
       this.save();

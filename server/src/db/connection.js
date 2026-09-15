@@ -43,6 +43,8 @@ const SCHEMA_SQL = `
       image_url TEXT,
       image_blob BLOB,
       out_of_stock INTEGER NOT NULL DEFAULT 0,
+      offer_type TEXT NOT NULL DEFAULT 'none',
+      offer_expires_at TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -250,6 +252,12 @@ function migrateSqlite(sqlite) {
   const cols = sqlite.prepare("PRAGMA table_info(services)").all().map((col) => col.name);
   if (!cols.includes("image_blob")) {
     sqlite.exec("ALTER TABLE services ADD COLUMN image_blob BLOB");
+  }
+  if (!cols.includes("offer_type")) {
+    sqlite.exec("ALTER TABLE services ADD COLUMN offer_type TEXT NOT NULL DEFAULT 'none'");
+  }
+  if (!cols.includes("offer_expires_at")) {
+    sqlite.exec("ALTER TABLE services ADD COLUMN offer_expires_at TEXT");
   }
 }
 
