@@ -2,12 +2,19 @@ import { getDb, SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import { persistAdminState } from "../db/persist.js";
 import fs from "fs";
 import path from "path";
+import {
+  isExpiredOffer,
+  normalizeOfferType,
+  OFFER_TYPES,
+  parseOfferExpiry,
+} from "../../../shared/offers.js";
 
 function rowToService(row) {
   if (!row) return null;
   const outOfStock = Boolean(row.out_of_stock);
   const month = outOfStock ? 0 : Number(row.price_month);
   const year = outOfStock ? 0 : Number(row.price_year);
+  const offerType = normalizeOfferType(row.offer_type);
   return {
     id: row.id,
     icon: row.icon || "",
@@ -23,8 +30,34 @@ function rowToService(row) {
     imageSrc: blobToDataUrl(row.image_blob),
     hasCustomImage: Boolean(row.image_url || row.image_blob),
     outOfStock,
+    offerType,
+    offerExpiresAt: offerType === OFFER_TYPES.NONE ? null : row.offer_expires_at || null,
     sortOrder: row.sort_order,
   };
+}
+
+export function normalizeOfferFields(data, current = null) {
+  const offered =
+    data.offerType !== undefined || data.offerExpiresAt !== undefined;
+  if (!offered && current) {
+    return {
+      offerType: normalizeOfferType(current.offerType),
+      offerExpiresAt: current.offerExpiresAt || null,
+    };
+  }
+  const offerType = normalizeOfferType(
+    data.offerType !== undefined ? data.offerType : current?.offerType,
+  );
+  if (offerType === OFFER_TYPES.NONE) {
+    return { offerType: OFFER_TYPES.NONE, offerExpiresAt: null };
+  }
+  const rawExpiry =
+    data.offerExpiresAt !== undefined ? data.offerExpiresAt : current?.offerExpiresAt;
+  const offerExpiresAt = parseOfferExpiry(rawExpiry);
+  if (!offerExpiresAt) {
+    throw new Error("Offer expiry date and time is required");
+  }
+  return { offerType, offerExpiresAt };
 }
 
 function deriveOutOfStock(prices, explicit) {
@@ -74,6 +107,10 @@ export function listServices() {
   return rows.map(rowToService);
 }
 
+export function listPublicServices(now = Date.now()) {
+  return listServices().filter((service) => !isExpiredOffer(service, now));
+}
+
 export function getServiceById(id) {
   const row = getDb().prepare("SELECT * FROM services WHERE id = ?").get(id);
   return rowToService(row);
@@ -114,6 +151,7 @@ export function insertService(data, options = {}) {
   const outOfStock = deriveOutOfStock(data.prices, data.outOfStock);
   const month = outOfStock ? 0 : sanitizePrice(data.prices?.month ?? 0);
   const year = outOfStock ? 0 : sanitizePrice(data.prices?.year ?? 0);
+  const offer = normalizeOfferFields(data);
   const imageUrl =
     data.imageUrl && !String(data.imageUrl).startsWith("data:")
       ? data.imageUrl
@@ -125,11 +163,13 @@ export function insertService(data, options = {}) {
     `INSERT INTO services (
       id, icon, accent, type_en, type_ar, name_en, name_ar,
       description_en, description_ar, price_month, price_year,
-      image_url, image_blob, out_of_stock, sort_order, updated_at
+      image_url, image_blob, out_of_stock, offer_type, offer_expires_at,
+      sort_order, updated_at
     ) VALUES (
       @id, @icon, @accent, @typeEn, @typeAr, @nameEn, @nameAr,
       @descriptionEn, @descriptionAr, @priceMonth, @priceYear,
-      @imageUrl, @imageBlob, @outOfStock, @sortOrder, datetime('now')
+      @imageUrl, @imageBlob, @outOfStock, @offerType, @offerExpiresAt,
+      @sortOrder, datetime('now')
     )`,
   ).run({
     id: data.id,
@@ -146,6 +186,8 @@ export function insertService(data, options = {}) {
     imageUrl,
     imageBlob: data.imageBlob || null,
     outOfStock: outOfStock ? 1 : 0,
+    offerType: offer.offerType,
+    offerExpiresAt: offer.offerExpiresAt,
     sortOrder: data.sortOrder ?? minOrder,
   });
 
@@ -176,6 +218,7 @@ export function updateService(id, patch, options = {}) {
     nextPrices,
     typeof patch.outOfStock === "boolean" ? patch.outOfStock : undefined,
   );
+  const offer = normalizeOfferFields(patch, current);
 
   const next = {
     nameEn: typeof patch.nameEn === "string" ? patch.nameEn : current.nameEn,
@@ -199,6 +242,8 @@ export function updateService(id, patch, options = {}) {
     priceMonth: outOfStock ? 0 : nextPrices.month,
     priceYear: outOfStock ? 0 : nextPrices.year,
     outOfStock: outOfStock ? 1 : 0,
+    offerType: offer.offerType,
+    offerExpiresAt: offer.offerExpiresAt,
   };
 
   getDb()
@@ -217,6 +262,8 @@ export function updateService(id, patch, options = {}) {
         price_month = @priceMonth,
         price_year = @priceYear,
         out_of_stock = @outOfStock,
+        offer_type = @offerType,
+        offer_expires_at = @offerExpiresAt,
         updated_at = datetime('now')
       WHERE id = @id`,
     )

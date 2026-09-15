@@ -1,11 +1,11 @@
-import { getServiceImageBlob, imageFilenameFromUrl, listServices } from "../models/Service.js";
+import { getServiceImageBlob, imageFilenameFromUrl, listPublicServices, listServices } from "../models/Service.js";
 import { SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import fs from "fs";
 import path from "path";
 
 export function getPublicServices(_req, res) {
   try {
-    res.json({ services: listServices() });
+    res.json({ services: listPublicServices() });
   } catch (err) {
     console.error("Failed to load services:", err);
     res.status(500).json({ error: "Failed to load services" });

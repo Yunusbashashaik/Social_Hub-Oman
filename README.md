@@ -44,12 +44,12 @@ Optional env:
 
 Click the **Admin** icon in the header. A modal prompts for credentials, then opens the Admin Dashboard:
 
-- **Add Services** — JPEG image, name, EN/AR descriptions, 1-month and 1-year prices
+- **Add Services** — JPEG image, name, EN/AR descriptions, 1-month and 1-year prices, optional Offer Type (None / Eid Offer / Special Offer) with expiry date and time
 - **Edit Services** — dropdown for Services, Complaint Email ID, Contact Details (WhatsApp), and About Us / social links
 
 Default credentials: `admin` / `Ss$135790` (override with `ADMIN_USERNAME` / `ADMIN_PASSWORD`).
 
-Out-of-stock services use price `0`, show an **Out of Stock** note, and disable Add to Cart.
+Out-of-stock services use price `0`, show an **Out of Stock** note, and disable Add to Cart. Optional Eid/Special offers replace that badge with a live countdown while active; after expiry that service is hidden from the store only.
 
 ### Deploy on GoDaddy (Node.js)
 
