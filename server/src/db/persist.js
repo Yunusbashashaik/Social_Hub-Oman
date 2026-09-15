@@ -1,12 +1,17 @@
 import fs from "fs";
 import path from "path";
+import {
+  flushActiveStore,
+  getActiveStorePath,
+  getDataDir,
+  LEGACY_APP_DATA_DIR,
+} from "./connection.js";
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
-import { getActiveStorePath } from "./connection.js";
 import { DEFAULT_SETTINGS } from "../config/defaults.js";
 
 const SNAPSHOT_NAME = "admin-state.json";
-/** Bump this to ignore leftover catalog snapshots from before the empty-store reset. */
-export const CATALOG_GENERATION = 3;
+/** Snapshot format version. Never used to wipe or replace a live catalog. */
+export const CATALOG_GENERATION = 4;
 
 let source = null;
 let persistDisabled = 0;
@@ -24,17 +29,57 @@ export function withoutPersist(fn) {
   }
 }
 
-export function getSnapshotPaths() {
+export function getSnapshotWritePaths() {
+  const dirs = new Set();
   const storePath = getActiveStorePath();
-  const dir = path.dirname(storePath);
-  return [path.join(dir, SNAPSHOT_NAME)];
+  if (storePath) dirs.add(path.dirname(path.resolve(storePath)));
+  dirs.add(path.resolve(getDataDir()));
+  if (process.env.DATA_DIR) dirs.add(path.resolve(process.env.DATA_DIR));
+  return [...dirs].map((dir) => path.join(dir, SNAPSHOT_NAME));
+}
+
+export function getSnapshotPaths() {
+  const paths = new Set(getSnapshotWritePaths());
+  paths.add(path.join(path.resolve(LEGACY_APP_DATA_DIR), SNAPSHOT_NAME));
+  paths.add(path.join(path.resolve(getDataDir()), SNAPSHOT_NAME));
+  return [...paths];
 }
 
 function atomicWrite(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, data);
+  const fd = fs.openSync(tmp, "w");
+  try {
+    fs.writeSync(fd, data);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
   fs.renameSync(tmp, filePath);
+  try {
+    const dirFd = fs.openSync(path.dirname(filePath), "r");
+    try {
+      fs.fsyncSync(dirFd);
+    } finally {
+      fs.closeSync(dirFd);
+    }
+  } catch {
+    /* some hosts cannot fsync directories */
+  }
+}
+
+function serializeServices() {
+  if (!source?.listServices) return [];
+  return source.listServices().map((service) => {
+    const blob = source.getServiceImageBlob?.(service.id);
+    const rest = { ...service };
+    delete rest.imageSrc;
+    return {
+      ...rest,
+      imageBase64:
+        blob && blob.length ? Buffer.from(blob).toString("base64") : undefined,
+    };
+  });
 }
 
 export function writeAdminSnapshot(state) {
@@ -47,12 +92,18 @@ export function writeAdminSnapshot(state) {
     settings: state.settings && typeof state.settings === "object" ? state.settings : {},
   };
   const body = `${JSON.stringify(payload, null, 2)}\n`;
-  for (const filePath of getSnapshotPaths()) {
+  let wrote = 0;
+  for (const filePath of getSnapshotWritePaths()) {
     try {
       atomicWrite(filePath, body);
+      wrote += 1;
     } catch (err) {
       console.error("Failed to write admin snapshot", filePath, err?.message || err);
     }
+  }
+  if (!wrote) {
+    console.error("Admin snapshot was not written to any durable path");
+    return null;
   }
   return payload;
 }
@@ -60,18 +111,9 @@ export function writeAdminSnapshot(state) {
 export function persistAdminState() {
   if (persistDisabled || !source) return null;
   try {
-    const services = source.listServices().map((service) => {
-      const rest = { ...service };
-      delete rest.imageSrc;
-      const blob = source.getServiceImageBlob?.(service.id);
-      if (!blob) return rest;
-      return {
-        ...rest,
-        imageBase64: Buffer.from(blob).toString("base64"),
-      };
-    });
+    flushActiveStore();
     return writeAdminSnapshot({
-      services,
+      services: serializeServices(),
       settings: source.getAllSettings(),
     });
   } catch (err) {
@@ -94,6 +136,23 @@ export function readAdminSnapshot() {
     }
   }
   return best;
+}
+
+function settingsSignature(settings) {
+  const value = settings || {};
+  return JSON.stringify({
+    complaintEmail: value.complaintEmail,
+    whatsappNumbers: value.whatsappNumbers,
+    aboutEn: value.aboutEn,
+    aboutAr: value.aboutAr,
+    ownersEn: value.ownersEn,
+    ownersAr: value.ownersAr,
+    socialLinks: value.socialLinks,
+  });
+}
+
+export function settingsMatchDefaults(settings) {
+  return settingsSignature(settings) === settingsSignature(DEFAULT_SETTINGS);
 }
 
 function serviceSignature(service) {
@@ -124,29 +183,8 @@ function catalogSignature(services) {
     .join("\n");
 }
 
-function defaultCatalogSignature() {
-  return catalogSignature(DEFAULT_SERVICES);
-}
-
-function settingsSignature(settings) {
-  const value = settings || {};
-  return JSON.stringify({
-    complaintEmail: value.complaintEmail,
-    whatsappNumbers: value.whatsappNumbers,
-    aboutEn: value.aboutEn,
-    aboutAr: value.aboutAr,
-    ownersEn: value.ownersEn,
-    ownersAr: value.ownersAr,
-    socialLinks: value.socialLinks,
-  });
-}
-
 export function catalogMatchesDefaults(services) {
-  return catalogSignature(services) === defaultCatalogSignature();
-}
-
-export function settingsMatchDefaults(settings) {
-  return settingsSignature(settings) === settingsSignature(DEFAULT_SETTINGS);
+  return catalogSignature(services) === catalogSignature(DEFAULT_SERVICES);
 }
 
 export function hydratePersistedAdminState() {
@@ -154,30 +192,36 @@ export function hydratePersistedAdminState() {
   const snapshot = readAdminSnapshot();
   if (!snapshot) return { restored: false, reason: "no-snapshot" };
 
-  const currentServices = source.listServices();
   const currentSettings = source.getAllSettings();
-  const snapServices = Array.isArray(snapshot.services) ? snapshot.services : [];
   const snapSettings = snapshot.settings && typeof snapshot.settings === "object" ? snapshot.settings : null;
+  const snapServices = Array.isArray(snapshot.services) ? snapshot.services : [];
 
   let restoredServices = false;
   let restoredSettings = false;
 
   withoutPersist(() => {
-    if (snapServices.length && snapshot.generation === CATALOG_GENERATION) {
-      const empty = currentServices.length === 0;
-      const currentIsDefault = catalogMatchesDefaults(currentServices);
-      const snapshotDiffers = catalogSignature(currentServices) !== catalogSignature(snapServices);
-      if (empty || (currentIsDefault && snapshotDiffers)) {
-        source.replaceAllServices(snapServices);
-        restoredServices = true;
-      }
+    const currentServices = source.listServices();
+    const emptyCatalog = currentServices.length === 0;
+    const currentIsDefault = catalogMatchesDefaults(currentServices);
+    const snapshotDiffers =
+      catalogSignature(currentServices) !== catalogSignature(snapServices);
+    const snapshotCanReplaceDefaults =
+      snapServices.length >= currentServices.length && snapServices.length > 0;
+    if (
+      snapServices.length > 0 &&
+      (emptyCatalog ||
+        (currentIsDefault && snapshotDiffers && snapshotCanReplaceDefaults))
+    ) {
+      source.replaceAllServices(snapServices);
+      restoredServices = true;
     }
 
     if (snapSettings) {
       const emptySettings = source.countSettings() === 0;
-      const currentIsDefault = settingsMatchDefaults(currentSettings);
-      const snapshotDiffers = settingsSignature(currentSettings) !== settingsSignature(snapSettings);
-      if (emptySettings || (currentIsDefault && snapshotDiffers)) {
+      const currentIsDefaultSettings = settingsMatchDefaults(currentSettings);
+      const snapshotDiffersSettings =
+        settingsSignature(currentSettings) !== settingsSignature(snapSettings);
+      if (emptySettings || (currentIsDefaultSettings && snapshotDiffersSettings)) {
         source.replaceAllSettings(snapSettings);
         restoredSettings = true;
       }

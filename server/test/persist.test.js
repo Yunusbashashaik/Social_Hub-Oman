@@ -3,11 +3,24 @@ import { afterEach, describe, it } from "node:test";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { closeDatabase, initDatabase } from "../src/db/connection.js";
-import { CATALOG_GENERATION } from "../src/db/persist.js";
+import { DEFAULT_SERVICES } from "../src/config/defaultServices.js";
+import {
+  closeDatabase,
+  getDataDir,
+  getLastMigration,
+  initDatabase,
+} from "../src/db/connection.js";
+import { readAdminSnapshot, withoutPersist } from "../src/db/persist.js";
+import { getHealthPayload } from "../src/health.js";
 import { seedDatabase } from "../src/db/seed.js";
-import { deleteService, insertService, listServices, updateService } from "../src/models/Service.js";
-import { getAllSettings, getSetting, setSetting, updateSettings } from "../src/models/Settings.js";
+import {
+  deleteService,
+  insertService,
+  listServices,
+  replaceAllServices,
+  updateService,
+} from "../src/models/Service.js";
+import { getAllSettings, getSetting, updateSettings } from "../src/models/Settings.js";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "gs-persist-"));
@@ -17,69 +30,57 @@ function sqliteFiles(dbPath) {
   return [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
 }
 
-function addAdminService() {
-  return insertService({
-    id: "admin-added-stream",
-    nameEn: "Admin Stream",
-    nameAr: "بث المشرف",
-    descriptionEn: "Added by admin",
-    descriptionAr: "أضيف من لوحة التحكم",
-    prices: { month: 4, year: 30 },
-  });
-}
-
 afterEach(() => {
   closeDatabase();
 });
 
 describe("admin catalog persistence", () => {
-  it("starts with the hardcoded catalog and keeps admin-added services after restart", () => {
+  it("seeds the default catalog once and keeps admin edits after a second seedDatabase()", () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
     const firstSeed = seedDatabase();
-    assert.equal(listServices().length, 42);
-    assert.equal(listServices()[0].id, "netflix-prime-combo");
+    assert.equal(firstSeed.servicesSeeded, true);
+    assert.equal(listServices().length, DEFAULT_SERVICES.length);
+    assert.equal(getSetting("catalogSeeded"), true);
     assert.equal(
       listServices().find((s) => s.id === "spotify-premium").imageUrl,
       "/service-photos/21.jpg",
     );
-    assert.equal(
-      listServices().find((s) => s.id === "tiktok-usa").imageUrl,
-      "/service-photos/40.jpg",
-    );
-    assert.equal(
-      listServices().find((s) => s.id === "esim-travel").imageUrl,
-      "/service-photos/41.jpg",
-    );
-    assert.equal(
-      listServices().find((s) => s.id === "whatsapp-number").imageUrl,
-      "/service-photos/42.jpg",
-    );
-    assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
-    assert.equal(firstSeed.catalogReset, true);
-    assert.equal(firstSeed.servicesSeeded, true);
 
-    const created = addAdminService();
-    updateService(created.id, { prices: { month: 7.5, year: 40 } });
+    const targetId = DEFAULT_SERVICES[0].id;
+    updateService(targetId, {
+      prices: { month: 99, year: 900 },
+      nameEn: "Admin Priced Service",
+    });
+    insertService({
+      id: "admin-added-stream",
+      nameEn: "Admin Stream",
+      nameAr: "بث المشرف",
+      descriptionEn: "Added by admin",
+      descriptionAr: "أضيف من لوحة التحكم",
+      prices: { month: 4, year: 30 },
+    });
     updateSettings({
       complaintEmail: "persist-forever@example.com",
       aboutEn: "Custom about text from admin",
       ownersEn: "Test Owner One, Test Owner Two",
       whatsappNumbers: ["96811111111", "96822222222"],
     });
+    assert.equal(listServices().length, DEFAULT_SERVICES.length + 1);
 
     closeDatabase();
     initDatabase(dbPath);
     const afterRestart = seedDatabase();
     assert.equal(afterRestart.servicesSeeded, false);
-    assert.equal(afterRestart.settingsSeeded, false);
     assert.equal(afterRestart.catalogReset, false);
-    assert.equal(listServices().length, 43);
+    assert.equal(listServices().length, DEFAULT_SERVICES.length + 1);
+    const edited = listServices().find((s) => s.id === targetId);
+    assert.equal(edited.prices.month, 99);
+    assert.equal(edited.prices.year, 900);
+    assert.equal(edited.nameEn, "Admin Priced Service");
+    assert.ok(listServices().some((s) => s.id === "admin-added-stream"));
 
-    const again = listServices().find((s) => s.id === created.id);
-    assert.equal(again.prices.month, 7.5);
-    assert.equal(again.prices.year, 40);
     const settings = getAllSettings();
     assert.equal(settings.complaintEmail, "persist-forever@example.com");
     assert.equal(settings.aboutEn, "Custom about text from admin");
@@ -90,41 +91,74 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("restores admin-added services from a current-generation snapshot when the database is replaced", () => {
+  it("does not re-insert defaults after admin deletes a seeded service", () => {
+    const dir = tempDir();
+    const dbPath = path.join(dir, "store.db");
+    initDatabase(dbPath);
+    seedDatabase();
+    const victim = DEFAULT_SERVICES[1].id;
+    assert.equal(deleteService(victim), true);
+    const remaining = listServices().length;
+
+    closeDatabase();
+    initDatabase(dbPath);
+    const again = seedDatabase();
+    assert.equal(again.servicesSeeded, false);
+    assert.equal(listServices().length, remaining);
+    assert.equal(
+      listServices().some((s) => s.id === victim),
+      false,
+    );
+
+    closeDatabase();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("restores catalog services from snapshot when the database file is replaced", () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
     seedDatabase();
 
-    const created = addAdminService();
-    updateService(created.id, { prices: { month: 9, year: 55 } });
+    insertService({
+      id: "admin-added-stream",
+      nameEn: "Admin Stream",
+      nameAr: "بث المشرف",
+      descriptionEn: "Added by admin",
+      descriptionAr: "أضيف من لوحة التحكم",
+      prices: { month: 9, year: 55 },
+    });
     updateSettings({ complaintEmail: "snapshot@example.com", aboutEn: "Kept about" });
+    const expectedCount = listServices().length;
 
     closeDatabase();
     for (const file of sqliteFiles(dbPath)) {
       fs.rmSync(file, { force: true });
     }
     assert.equal(fs.existsSync(path.join(dir, "admin-state.json")), true);
+    const snap = JSON.parse(fs.readFileSync(path.join(dir, "admin-state.json"), "utf8"));
+    assert.ok(snap.services.some((s) => s.id === "admin-added-stream"));
 
     initDatabase(dbPath);
     const seeded = seedDatabase();
-    assert.equal(seeded.hydrated.restored, true);
-    assert.equal(seeded.catalogReset, false);
-    assert.equal(listServices().length, 43);
-
-    const restored = listServices().find((s) => s.id === created.id);
-    assert.equal(restored.prices.month, 9);
-    assert.equal(restored.prices.year, 55);
+    assert.equal(seeded.hydrated.restoredServices, true);
+    assert.equal(listServices().length, expectedCount);
+    assert.ok(listServices().some((s) => s.id === "admin-added-stream"));
     assert.equal(getAllSettings().complaintEmail, "snapshot@example.com");
     assert.equal(getAllSettings().aboutEn, "Kept about");
+    assert.ok(readAdminSnapshot().services.length >= expectedCount);
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("does not restore the old factory catalog from a previous-generation snapshot", () => {
+  it("never overwrites an existing DB catalog with leftover snapshot services", () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
+    initDatabase(dbPath);
+    seedDatabase();
+    updateService(DEFAULT_SERVICES[0].id, { prices: { month: 77, year: 770 } });
+
     fs.writeFileSync(
       path.join(dir, "admin-state.json"),
       `${JSON.stringify({
@@ -136,68 +170,162 @@ describe("admin catalog persistence", () => {
             id: "legacy-factory-item",
             nameEn: "Legacy Item",
             nameAr: "عنصر قديم",
-            descriptionEn: "should not return",
-            descriptionAr: "يجب ألا يعود",
+            descriptionEn: "should not replace live catalog",
+            descriptionAr: "يجب ألا يستبدل الكتالوج الحالي",
             prices: { month: 2.5, year: 18 },
           },
         ],
         settings: { complaintEmail: "legacy@example.com" },
       })}\n`,
     );
-    initDatabase(dbPath);
-    seedDatabase();
-    assert.equal(listServices().length, 42);
+
+    const again = seedDatabase();
+    assert.equal(again.hydrated.restoredServices, false);
     assert.equal(
       listServices().some((s) => s.id === "legacy-factory-item"),
       false,
     );
-    assert.equal(getAllSettings().complaintEmail, "legacy@example.com");
+    assert.equal(listServices().find((s) => s.id === DEFAULT_SERVICES[0].id).prices.month, 77);
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("keeps admin-added services if catalog generation is missing after a restart", () => {
-    const dir = tempDir();
-    const dbPath = path.join(dir, "store.db");
-    initDatabase(dbPath);
-    seedDatabase();
-    const created = addAdminService();
-    setSetting("catalogGeneration", 0);
+  it("keeps admin renames after ephemeral in-app data is wiped when durable DATA_DIR remains", () => {
+    const ephemeralAppData = tempDir();
+    const durable = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = durable;
+    try {
+      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData });
+      const first = seedDatabase();
+      assert.equal(first.catalogSeededThisBoot, true);
+      assert.equal(getDataDir(), path.resolve(durable));
 
-    closeDatabase();
-    initDatabase(dbPath);
-    const after = seedDatabase();
-    assert.equal(after.catalogReset, true);
-    assert.equal(listServices().some((s) => s.id === created.id), true);
-    assert.equal(listServices().length, 43);
-    assert.equal(getSetting("catalogGeneration"), CATALOG_GENERATION);
+      const youtube = listServices().find((s) => s.id === "youtube-premium");
+      const canva = listServices().find((s) => s.id === "canva-pro");
+      assert.ok(youtube);
+      assert.ok(canva);
+      const beforeSnap = getHealthPayload().snapshotSavedAt;
+      updateService("youtube-premium", { nameEn: "YouTube Premium" });
+      updateService("canva-pro", { nameEn: "Canva Pro" });
+      const afterSnap = getHealthPayload().snapshotSavedAt;
+      assert.ok(afterSnap);
+      assert.notEqual(afterSnap, beforeSnap);
 
-    closeDatabase();
-    fs.rmSync(dir, { recursive: true, force: true });
+      closeDatabase();
+      fs.rmSync(ephemeralAppData, { recursive: true, force: true });
+      assert.equal(fs.existsSync(path.join(durable, "globalstore.db")), true);
+
+      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData });
+      const afterRestart = seedDatabase();
+      assert.equal(afterRestart.catalogSeededThisBoot, false);
+      assert.equal(afterRestart.servicesSeeded, false);
+      assert.equal(
+        listServices().find((s) => s.id === "youtube-premium").nameEn,
+        "YouTube Premium",
+      );
+      assert.equal(listServices().find((s) => s.id === "canva-pro").nameEn, "Canva Pro");
+
+      const health = getHealthPayload();
+      assert.equal(health.ok, true);
+      assert.equal(health.dataDir, path.resolve(durable));
+      assert.equal(health.services, listServices().length);
+      assert.equal(health.catalogSeededThisBoot, false);
+      assert.equal(health.catalogSeeded, true);
+      assert.equal(health.storePath, path.join(path.resolve(durable), "globalstore.db"));
+      assert.ok(health.snapshotSavedAt);
+      assert.ok(Date.parse(health.snapshotSavedAt) >= Date.parse(afterSnap));
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(durable, { recursive: true, force: true });
+      fs.rmSync(ephemeralAppData, { recursive: true, force: true });
+    }
   });
 
-  it("puts a deleted hardcoded service back on the next boot without wiping admin edits", () => {
+  it("seeds defaults only once on an empty durable store", () => {
+    const durable = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = durable;
+    try {
+      initDatabase(undefined, { skipMigrate: true });
+      const first = seedDatabase();
+      assert.equal(first.catalogSeededThisBoot, true);
+      assert.equal(listServices().length, DEFAULT_SERVICES.length);
+      const youtubeDefault = listServices().find((s) => s.id === "youtube-premium");
+      assert.ok(youtubeDefault.nameEn.includes("YouTube Premium"));
+
+      closeDatabase();
+      initDatabase(undefined, { skipMigrate: true });
+      const second = seedDatabase();
+      assert.equal(second.catalogSeededThisBoot, false);
+      assert.equal(second.servicesSeeded, false);
+      assert.equal(listServices().length, DEFAULT_SERVICES.length);
+      assert.equal(
+        listServices().find((s) => s.id === "youtube-premium").nameEn,
+        youtubeDefault.nameEn,
+      );
+
+      const health = getHealthPayload();
+      assert.equal(health.catalogSeededThisBoot, false);
+      assert.equal(health.services, DEFAULT_SERVICES.length);
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(durable, { recursive: true, force: true });
+    }
+  });
+
+  it("copies a legacy in-app store into an empty durable directory once", () => {
+    const legacy = tempDir();
+    const durable = tempDir();
+    try {
+      initDatabase(path.join(legacy, "globalstore.db"));
+      seedDatabase();
+      updateService("youtube-premium", { nameEn: "YouTube Premium" });
+      closeDatabase();
+
+      initDatabase(undefined, { dataDir: durable, legacyDataDir: legacy });
+      const migrated = getLastMigration();
+      assert.equal(migrated.migrated, true);
+      seedDatabase();
+      assert.equal(
+        listServices().find((s) => s.id === "youtube-premium").nameEn,
+        "YouTube Premium",
+      );
+      assert.equal(getDataDir(), path.resolve(durable));
+    } finally {
+      closeDatabase();
+      fs.rmSync(legacy, { recursive: true, force: true });
+      fs.rmSync(durable, { recursive: true, force: true });
+    }
+  });
+
+  it("restores a durable snapshot over a re-seeded default catalog", () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
     seedDatabase();
-    const created = addAdminService();
-    updateService(created.id, { prices: { month: 3, year: 20 } });
-    updateService("netflix-prime-combo", { prices: { month: 9, year: 99 } });
-    deleteService("prime-shared");
-    assert.equal(listServices().some((s) => s.id === "prime-shared"), false);
+    updateService("youtube-premium", { nameEn: "YouTube Premium" });
+    updateService("canva-pro", { nameEn: "Canva Pro" });
 
-    closeDatabase();
-    initDatabase(dbPath);
-    seedDatabase();
-    assert.ok(listServices().some((s) => s.id === "prime-shared"));
-    const combo = listServices().find((s) => s.id === "netflix-prime-combo");
-    assert.equal(combo.prices.month, 9);
-    assert.equal(combo.prices.year, 99);
-    const extra = listServices().find((s) => s.id === created.id);
-    assert.equal(extra.prices.month, 3);
-    assert.equal(listServices().length, 43);
+    withoutPersist(() => replaceAllServices(DEFAULT_SERVICES));
+    assert.ok(
+      listServices().find((s) => s.id === "youtube-premium").nameEn.includes(
+        "Personal",
+      ),
+    );
+
+    const restored = seedDatabase();
+    assert.equal(restored.hydrated.restoredServices, true);
+    assert.equal(
+      listServices().find((s) => s.id === "youtube-premium").nameEn,
+      "YouTube Premium",
+    );
+    assert.equal(listServices().find((s) => s.id === "canva-pro").nameEn, "Canva Pro");
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });

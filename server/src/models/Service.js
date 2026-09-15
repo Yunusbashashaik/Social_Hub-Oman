@@ -157,7 +157,7 @@ export function insertService(data, options = {}) {
   return created;
 }
 
-export function updateService(id, patch) {
+export function updateService(id, patch, options = {}) {
   const current = getServiceById(id);
   if (!current) return null;
 
@@ -227,7 +227,7 @@ export function updateService(id, patch) {
   }
 
   const updated = getServiceById(id);
-  persistAdminState();
+  if (options.persist !== false) persistAdminState();
   return updated;
 }
 

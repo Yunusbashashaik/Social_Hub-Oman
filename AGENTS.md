@@ -23,7 +23,7 @@ Vite proxies `/api` to port **3001** during development. For production-style se
 
 ### Dynamic database
 
-Catalog, site settings (complaint email, WhatsApp numbers, About Us, social links), and complaints persist in **SQLite** at `server/data/globalstore.db` (override with `DATABASE_PATH`). Uploaded service images live under `server/data/uploads/services/` and are served from `/api/uploads/...`. Public pages load live data via `GET /api/services` and `GET /api/settings`.
+Catalog, site settings (complaint email, WhatsApp numbers, About Us, social links), and complaints persist in **SQLite** in a durable folder **outside the deploy tree** (`DATA_DIR`, default `/root/socialhub-oman-data` or another writable host path — never `/app/socialhub-oman-data` on GoDaddy Published App). Uploaded service images live under that folder's `uploads/services/` and are served from `/api/uploads/...`. Public pages load live data via `GET /api/services` and `GET /api/settings`. `GET /api/health` reports `dataDir`, `storePath`, `snapshotSavedAt`, `catalogSeededThisBoot`, and `catalogSeeded`.
 
 ### Complaint email
 
@@ -40,3 +40,7 @@ Click the header Admin icon to open a **modal** (no separate `/admin` page). Aft
 - WhatsApp buttons open `wa.me` in a new tab (external; no local WhatsApp service). Numbers come from the database settings.
 - Arabic mode toggles `body.rtl` and persists language in `localStorage` key `globalstores_lang`.
 - Services with price `0` / `outOfStock` show an Out of Stock badge and disable Add to Cart.
+
+### GoDaddy persistence
+
+Live catalog must survive **Restart Published App**. `GET /api/health` on socialhubomr.com must not use `dataDir` `/app/socialhub-oman-data`. After an admin save, `snapshotSavedAt` must advance. Defaults seed only when the durable store has never been initialized (`catalogSeededThisBoot` true only on that first boot).

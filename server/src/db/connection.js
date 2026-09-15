@@ -1,5 +1,6 @@
 import { createRequire } from "module";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { JsonDatabase } from "./jsonDb.js";
@@ -10,67 +11,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Git checkout root (folder that contains `server/` and `app.js`). */
 export const APP_ROOT = path.join(__dirname, "..", "..", "..");
 
-const LEGACY_DATA_DIR = path.join(APP_ROOT, "server", "data");
-const ROOT_HOST_DATA_DIR = "/root/socialhub-oman-data";
+/** In-app folder used by older deploys. Wiped by GoDaddy Restart Published App. */
+export const LEGACY_APP_DATA_DIR = path.join(__dirname, "..", "..", "data");
+export const DEFAULT_DURABLE_DIRNAME = "socialhub-oman-data";
+export const ROOT_HOST_DATA_DIR = `/root/${DEFAULT_DURABLE_DIRNAME}`;
 
-export function defaultDurableDataDir(appRoot = APP_ROOT) {
-  const parent = path.resolve(appRoot, "..");
-  const fsRoot = path.parse(path.resolve(appRoot)).root;
-  if (parent === fsRoot || parent === path.sep) {
-    return path.join(path.resolve(appRoot), "socialhub-oman-data");
-  }
-  return path.join(parent, "socialhub-oman-data");
-}
-
-function canWriteDir(dir) {
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.accessSync(dir, fs.constants.W_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function copyIfMissing(fromPath, toPath) {
-  if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return;
-  fs.mkdirSync(path.dirname(toPath), { recursive: true });
-  fs.copyFileSync(fromPath, toPath);
-}
-
-function migrateLegacyData(legacyDir, durableDir) {
-  const files = [
-    "globalstore.db",
-    "globalstore.db-wal",
-    "globalstore.db-shm",
-    "globalstore.json",
-    "admin-state.json",
-    "complaints.jsonl",
-  ];
-  for (const name of files) {
-    copyIfMissing(path.join(legacyDir, name), path.join(durableDir, name));
-  }
-  const fromUploads = path.join(legacyDir, "uploads");
-  const toUploads = path.join(durableDir, "uploads");
-  if (fs.existsSync(fromUploads) && !fs.existsSync(toUploads)) {
-    fs.cpSync(fromUploads, toUploads, { recursive: true });
-  }
-}
-
-export function resolveDataDir() {
-  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
-  const candidates = [ROOT_HOST_DATA_DIR, defaultDurableDataDir()];
-  for (const dir of candidates) {
-    if (!canWriteDir(dir)) continue;
-    migrateLegacyData(LEGACY_DATA_DIR, dir);
-    return dir;
-  }
-  return LEGACY_DATA_DIR;
-}
-
-export let DATA_DIR = resolveDataDir();
+export let DATA_DIR = LEGACY_APP_DATA_DIR;
 export let UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 export let SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
+
+const STORE_NAMES = [
+  "globalstore.db",
+  "globalstore.json",
+  "admin-state.json",
+  "globalstore.db-wal",
+];
 
 const SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS services (
@@ -114,12 +69,154 @@ const SCHEMA_SQL = `
 let db;
 let activeDbPath;
 let dbEngine = "none";
+let lastMigration = { migrated: false, reason: "not-run" };
 
-function bindDataDir(dir) {
-  DATA_DIR = dir;
+export function getDataDir() {
+  return DATA_DIR;
+}
+
+export function getUploadsDir() {
+  return UPLOADS_DIR;
+}
+
+export function getServiceUploadsDir() {
+  return SERVICE_UPLOADS_DIR;
+}
+
+export function getLastMigration() {
+  return lastMigration;
+}
+
+export function isInsideAppTree(dir, appRoot = APP_ROOT) {
+  const resolved = path.resolve(dir);
+  const root = path.resolve(appRoot);
+  return resolved === root || resolved.startsWith(`${root}${path.sep}`);
+}
+
+/**
+ * Preferred durable directory. Never uses a folder inside `/app` when that is
+ * the Published App tree — Restart Published App wipes `/app`.
+ */
+export function defaultDurableDataDir(
+  appRoot = APP_ROOT,
+  homeDir = os.homedir(),
+) {
+  const parent = path.resolve(appRoot, "..");
+  const fsRoot = path.parse(path.resolve(appRoot)).root;
+  if (parent !== fsRoot && parent !== path.sep) {
+    return path.join(parent, DEFAULT_DURABLE_DIRNAME);
+  }
+  const homeCandidate = path.join(path.resolve(homeDir), DEFAULT_DURABLE_DIRNAME);
+  if (!isInsideAppTree(homeCandidate, appRoot)) {
+    return homeCandidate;
+  }
+  return ROOT_HOST_DATA_DIR;
+}
+
+export function durableDataDirCandidates(appRoot = APP_ROOT, homeDir = os.homedir()) {
+  const parent = path.resolve(appRoot, "..");
+  const fsRoot = path.parse(path.resolve(appRoot)).root;
+  const list = [
+    ROOT_HOST_DATA_DIR,
+    path.join(path.resolve(homeDir), DEFAULT_DURABLE_DIRNAME),
+    "/var/lib/socialhub-oman-data",
+    "/opt/socialhub-oman-data",
+    "/data/socialhub-oman-data",
+    "/mnt/socialhub-oman-data",
+  ];
+  if (parent !== fsRoot && parent !== path.sep) {
+    list.unshift(path.join(parent, DEFAULT_DURABLE_DIRNAME));
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const item of list) {
+    const resolved = path.resolve(item);
+    if (seen.has(resolved)) continue;
+    if (isInsideAppTree(resolved, appRoot)) continue;
+    seen.add(resolved);
+    unique.push(resolved);
+  }
+  return unique;
+}
+
+function canWriteDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    const probe = path.join(dir, `.write-probe-${process.pid}`);
+    fs.writeFileSync(probe, "ok");
+    fs.unlinkSync(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function storeArtifactsPresent(dir) {
+  if (!dir || !fs.existsSync(dir)) return false;
+  return STORE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
+}
+
+export function migrateLegacyDataIfNeeded(
+  targetDir,
+  legacyDir = LEGACY_APP_DATA_DIR,
+) {
+  const target = path.resolve(targetDir);
+  const legacy = path.resolve(legacyDir);
+  if (target === legacy) {
+    lastMigration = { migrated: false, reason: "same-dir" };
+    return lastMigration;
+  }
+  if (!storeArtifactsPresent(legacy)) {
+    lastMigration = { migrated: false, reason: "no-legacy" };
+    return lastMigration;
+  }
+  if (storeArtifactsPresent(target)) {
+    lastMigration = { migrated: false, reason: "target-has-store" };
+    return lastMigration;
+  }
+  fs.mkdirSync(target, { recursive: true });
+  fs.cpSync(legacy, target, { recursive: true });
+  lastMigration = {
+    migrated: true,
+    reason: "copied-legacy",
+    from: legacy,
+    to: target,
+  };
+  console.log(`Migrated store data from ${legacy} to ${target}`);
+  return lastMigration;
+}
+
+function legacyLocationsToMigrate(appRoot = APP_ROOT) {
+  return [
+    LEGACY_APP_DATA_DIR,
+    path.join(path.resolve(appRoot), DEFAULT_DURABLE_DIRNAME),
+  ];
+}
+
+export function resolveDataDir(options = {}) {
+  if (options.dataDir) return path.resolve(options.dataDir);
+  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
+  if (options.dbPath) return path.dirname(path.resolve(options.dbPath));
+  if (options.jsonPath) return path.dirname(path.resolve(options.jsonPath));
+  if (process.env.DATABASE_PATH) {
+    return path.dirname(path.resolve(process.env.DATABASE_PATH));
+  }
+  if (process.env.JSON_DATABASE_PATH) {
+    return path.dirname(path.resolve(process.env.JSON_DATABASE_PATH));
+  }
+  for (const dir of durableDataDirCandidates()) {
+    if (canWriteDir(dir)) return dir;
+  }
+  const preferred = defaultDurableDataDir();
+  if (canWriteDir(preferred)) return preferred;
+  return LEGACY_APP_DATA_DIR;
+}
+
+function applyDataDir(dir) {
+  DATA_DIR = path.resolve(dir);
   UPLOADS_DIR = path.join(DATA_DIR, "uploads");
   SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
-  fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(SERVICE_UPLOADS_DIR, { recursive: true });
 }
 
@@ -142,6 +239,7 @@ function openSqlite(dbPath) {
   const Database = require("better-sqlite3");
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("synchronous = FULL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(SCHEMA_SQL);
   migrateSqlite(sqlite);
@@ -155,8 +253,44 @@ function migrateSqlite(sqlite) {
   }
 }
 
-export function initDatabase(dbPath = getDbPath(), options = {}) {
-  bindDataDir(path.dirname(path.resolve(dbPath)));
+export function flushActiveStore() {
+  if (!db) return;
+  if (dbEngine === "sqlite") {
+    try {
+      db.pragma("wal_checkpoint(TRUNCATE)");
+    } catch {
+      /* ignore */
+    }
+  } else if (typeof db.save === "function") {
+    db.save();
+  }
+}
+
+export function initDatabase(dbPath, options = {}) {
+  const resolvedDir = resolveDataDir({ ...options, dbPath });
+  const explicitStore = Boolean(dbPath || options.jsonPath || options.dataDir);
+  if (!explicitStore && !options.skipMigrate) {
+    const legacyHint = options.legacyDataDir || LEGACY_APP_DATA_DIR;
+    migrateLegacyDataIfNeeded(resolvedDir, legacyHint);
+    if (!storeArtifactsPresent(resolvedDir)) {
+      for (const extra of legacyLocationsToMigrate()) {
+        if (path.resolve(extra) === path.resolve(legacyHint)) continue;
+        migrateLegacyDataIfNeeded(resolvedDir, extra);
+        if (storeArtifactsPresent(resolvedDir)) break;
+      }
+    }
+  } else if (options.legacyDataDir && !options.skipMigrate) {
+    migrateLegacyDataIfNeeded(resolvedDir, options.legacyDataDir);
+  } else {
+    lastMigration = {
+      migrated: false,
+      reason: explicitStore ? "explicit-store" : "skipped",
+    };
+  }
+  applyDataDir(resolvedDir);
+
+  const sqlitePath = dbPath || getDbPath();
+  fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
 
   if (db) {
     try {
@@ -171,9 +305,9 @@ export function initDatabase(dbPath = getDbPath(), options = {}) {
   const forceJson = engine === "json";
   if (!forceJson) {
     try {
-      db = openSqlite(dbPath);
+      db = openSqlite(sqlitePath);
       dbEngine = "sqlite";
-      activeDbPath = dbPath;
+      activeDbPath = sqlitePath;
       return db;
     } catch (err) {
       console.error(
@@ -187,7 +321,7 @@ export function initDatabase(dbPath = getDbPath(), options = {}) {
     options.jsonPath ||
     process.env.JSON_DATABASE_PATH ||
     path.join(DATA_DIR, "globalstore.json");
-  bindDataDir(path.dirname(path.resolve(jsonPath)));
+  applyDataDir(path.dirname(path.resolve(jsonPath)));
   db = new JsonDatabase(jsonPath);
   dbEngine = "json";
   activeDbPath = jsonPath;
@@ -201,6 +335,7 @@ export function getActiveStorePath() {
 export function closeDatabase() {
   if (db) {
     try {
+      flushActiveStore();
       db.close();
     } catch {
       /* ignore */

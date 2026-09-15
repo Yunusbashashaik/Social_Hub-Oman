@@ -69,7 +69,16 @@ export class JsonDatabase {
       settings: this.data.settings,
       complaints: this.data.complaints,
     };
-    fs.writeFileSync(this.filePath, `${JSON.stringify(payload, null, 2)}\n`);
+    const body = `${JSON.stringify(payload, null, 2)}\n`;
+    const tmp = `${this.filePath}.${process.pid}.tmp`;
+    const fd = fs.openSync(tmp, "w");
+    try {
+      fs.writeSync(fd, body);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, this.filePath);
   }
 
   pragma() {

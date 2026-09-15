@@ -30,10 +30,11 @@ npm start   # serves built client + API on port 3001
 
 ### Dynamic database (SQLite)
 
-Admin edits and public catalog/settings are stored **outside the GitHub file set** so a new publish does not erase them. On a `/root` install the live folder is **`/root/socialhub-oman-data`**. If the app sits in a subfolder of `/root`, that same `/root/socialhub-oman-data` sibling is used. Override with `DATA_DIR` or `DATABASE_PATH`. Every visitor hitting the Node API sees the same live data.
+Admin edits and public catalog/settings are stored **outside the GitHub file set** so a new publish or **Restart Published App** does not erase them. The API never uses `/app/socialhub-oman-data` as the live store (that path is wiped with the container). Prefer **`/root/socialhub-oman-data`**, or set `DATA_DIR` to a host folder that is not under the app tree. Factory catalog names/prices seed **once** on a brand-new empty durable store and never overwrite existing admin rows.
 
 Optional env:
 
+- `DATA_DIR` — durable folder for SQLite, `admin-state.json`, and uploads (must survive Restart Published App)
 - `DATABASE_PATH` — custom SQLite file path
 - `ADMIN_USERNAME` (default: `admin`)
 - `ADMIN_PASSWORD` (default: `Ss$135790`)
@@ -68,7 +69,7 @@ Admin login needs a **running Node app**. If `https://YOUR-DOMAIN/api/health` do
    npm run build
    ```
 7. Restart the application  
-8. Visit `https://YOUR-DOMAIN/api/health` — you must see JSON `ok: true` and `dataDir` of `/root/socialhub-oman-data`  
+8. Visit `https://YOUR-DOMAIN/api/health` — you must see JSON `ok: true`  
 9. Then sign in with `admin` / `Ss$135790`
 
 Do **not** FTP only `client/dist` into `public_html`. That is static hosting and `/api/health` will 404.
@@ -81,7 +82,17 @@ If the website and API use different URLs, edit `client/public/runtime-config.js
 window.__GLOBALSTORE_CONFIG__ = { apiUrl: "https://your-node-api-url" };
 ```
 
-Keep **`/root/socialhub-oman-data`** so SQLite and uploads survive GitHub publishes into `/root`. Do not delete that folder. `GET /api/health` shows `dataDir` and `services` count.
+Keep **`/root/socialhub-oman-data`** (or the `DATA_DIR` you set) so SQLite and uploads survive GitHub publishes and **Restart Published App**. Do not delete that folder. `GET /api/health` shows `dataDir`, `storePath`, `snapshotSavedAt`, `catalogSeededThisBoot`, and `services` count. `dataDirInsideApp` must be `false`.
+
+### GoDaddy republish checklist (socialhubomr.com)
+
+1. Publish **`main`** (this repo) in Application Manager — not an old branch.
+2. Open `https://socialhubomr.com/api/health`. Confirm `ok: true`, `dataDir` is **not** `/app/socialhub-oman-data` (expect `/root/socialhub-oman-data` or another host path), and `dataDirInsideApp` is `false`.
+3. In Admin, rename a service (for example YouTube / Canva) and save. Reload health: **`snapshotSavedAt` must be newer** than before the save.
+4. Use **Restart Published App**. Reload health: `dataDir` unchanged, `catalogSeededThisBoot` is `false`, `snapshotSavedAt` still the post-edit value.
+5. Open `https://socialhubomr.com/api/services` and the public site — names/prices must **not** snap back to factory defaults.
+
+If health still shows `/app/socialhub-oman-data`, set Application Manager env **`DATA_DIR=/root/socialhub-oman-data`** (or another persistent volume), restart once, and repeat steps 2–5.
 
 ### Complaint email
 

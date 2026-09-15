@@ -1,10 +1,16 @@
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import {
+  bindPersist,
+  hydratePersistedAdminState,
+  persistAdminState,
+  withoutPersist,
+} from "./persist.js";
+import {
+  countServices,
   getServiceImageBlob,
   insertService,
   listServices,
   replaceAllServices,
-  seedServicesIfEmpty,
   updateService,
 } from "../models/Service.js";
 import {
@@ -15,38 +21,53 @@ import {
   seedSettingsIfEmpty,
   setSetting,
 } from "../models/Settings.js";
-import {
-  bindPersist,
-  hydratePersistedAdminState,
-  persistAdminState,
-  withoutPersist,
-  catalogMatchesDefaults,
-  settingsMatchDefaults,
-  CATALOG_GENERATION,
-} from "./persist.js";
 
 bindPersist({
   listServices,
   getAllSettings,
   countSettings,
+  countServices,
   replaceAllServices,
   replaceAllSettings,
   getServiceImageBlob,
 });
 
-/** Re-insert baked catalog rows that are missing. Never overwrite an existing id (Admin edits stay). */
-function ensureHardcodedServices() {
-  const existing = new Set(listServices().map((row) => row.id));
-  let added = 0;
+let lastSeedResult = {
+  servicesSeeded: false,
+  settingsSeeded: false,
+  catalogSeededThisBoot: false,
+  hydrated: { restored: false },
+  catalogReset: false,
+};
+
+export function getLastSeedResult() {
+  return lastSeedResult;
+}
+
+function seedDefaultCatalogIfEmpty() {
+  if (countServices() > 0) {
+    setSetting("catalogSeeded", true);
+    return false;
+  }
+
+  // Catalog was already initialized (admin deleted every row). Do not re-insert defaults.
+  if (getSetting("catalogSeeded") === true) {
+    return false;
+  }
+
   withoutPersist(() => {
     DEFAULT_SERVICES.forEach((service, index) => {
-      if (existing.has(service.id)) return;
-      insertService({ ...service, sortOrder: index }, { persist: false });
-      existing.add(service.id);
-      added += 1;
+      insertService(
+        {
+          ...service,
+          sortOrder: service.sortOrder ?? index,
+        },
+        { persist: false },
+      );
     });
   });
-  return added;
+  setSetting("catalogSeeded", true);
+  return true;
 }
 
 function hasCustomArtwork(row) {
@@ -73,34 +94,17 @@ function applyDefaultServicePhotos() {
 
 export function seedDatabase() {
   const settingsSeeded = withoutPersist(() => seedSettingsIfEmpty());
-  const servicesSeededEmpty = withoutPersist(() =>
-    seedServicesIfEmpty(DEFAULT_SERVICES),
-  );
-
   const hydrated = hydratePersistedAdminState();
-  if (hydrated.restoredServices) {
-    setSetting("catalogGeneration", CATALOG_GENERATION);
-  }
+  const servicesSeeded = seedDefaultCatalogIfEmpty();
+  applyDefaultServicePhotos();
+  persistAdminState();
 
-  const restoredMissing = ensureHardcodedServices();
-  const photosFilled = applyDefaultServicePhotos();
-  const servicesSeeded = Boolean(servicesSeededEmpty || restoredMissing);
-
-  const gen = Number(getSetting("catalogGeneration") || 0);
-  let catalogReset = false;
-  if (gen !== CATALOG_GENERATION) {
-    setSetting("catalogGeneration", CATALOG_GENERATION);
-    persistAdminState();
-    catalogReset = true;
-  } else if (servicesSeededEmpty || restoredMissing || photosFilled) {
-    persistAdminState();
-  } else {
-    const services = listServices();
-    const settings = getAllSettings();
-    if (!catalogMatchesDefaults(services) || !settingsMatchDefaults(settings)) {
-      persistAdminState();
-    }
-  }
-
-  return { servicesSeeded, settingsSeeded, hydrated, catalogReset };
+  lastSeedResult = {
+    servicesSeeded,
+    settingsSeeded,
+    catalogSeededThisBoot: servicesSeeded,
+    hydrated,
+    catalogReset: false,
+  };
+  return lastSeedResult;
 }
