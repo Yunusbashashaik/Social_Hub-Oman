@@ -14,6 +14,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || "0.0.0.0";
 
+// Production boot (app.js → index.js):
+// 1) initDatabase: resolveDataDir (DATA_DIR env or /root then $HOME then /local),
+//    copy a surviving replica if the primary dir is empty, open SQLite/JSON.
+// 2) seed.js bindPersist (module load) then seedDatabase: hydrate the best
+//    custom snapshot, factory-seed only on true first boot, persistAdminState
+//    to every replica path without clobbering a custom admin-state.json.
 initDatabase();
 seedDatabase();
 console.log(`Admin data directory: ${getDataDir()}`);

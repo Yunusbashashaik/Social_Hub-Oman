@@ -17,8 +17,20 @@ const SNAPSHOT_NAME = "admin-state.json";
 /** Snapshot format version. Never used to wipe or replace a live catalog. */
 export const CATALOG_GENERATION = 4;
 
+let lastPersistResult = {
+  wrote: 0,
+  skippedCustom: [],
+  attempted: [],
+  savedAt: null,
+  factoryPersistBlocked: false,
+};
+
 let source = null;
 let persistDisabled = 0;
+
+export function getLastPersistResult() {
+  return lastPersistResult;
+}
 
 export function bindPersist(nextSource) {
   source = nextSource;
@@ -113,7 +125,8 @@ export function writeAdminSnapshot(state, options = {}) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
   let wrote = 0;
   const skippedCustom = [];
-  for (const filePath of getSnapshotWritePaths()) {
+  const attempted = getSnapshotWritePaths();
+  for (const filePath of attempted) {
     const existing = readSnapshotFile(filePath);
     const clobberCustom =
       snapshotIsCustom(existing) &&
@@ -133,6 +146,13 @@ export function writeAdminSnapshot(state, options = {}) {
       console.error("Failed to write admin snapshot", filePath, err?.message || err);
     }
   }
+  lastPersistResult = {
+    wrote,
+    skippedCustom,
+    attempted,
+    savedAt: payload.savedAt,
+    factoryPersistBlocked: incomingIsFactory && skippedCustom.length > 0,
+  };
   if (!wrote) {
     if (skippedCustom.length) {
       console.error("Admin snapshot was not written; custom replicas were preserved");
@@ -373,6 +393,30 @@ export function hydratePersistedAdminState() {
   };
 }
 
+export function inspectReplicaDir(dir) {
+  const resolved = path.resolve(dir);
+  const snapshotPath = snapshotPathFor(resolved);
+  const snapshot = readSnapshotFile(snapshotPath);
+  return {
+    dir: resolved,
+    hasDb: fs.existsSync(path.join(resolved, "globalstore.db")),
+    hasJson: fs.existsSync(path.join(resolved, "globalstore.json")),
+    hasSnapshot: Boolean(snapshot),
+    snapshotPath,
+    snapshotSavedAt: snapshot?.savedAt || null,
+    snapshotServices: Array.isArray(snapshot?.services) ? snapshot.services.length : 0,
+    snapshotCustom: snapshotIsCustom(snapshot),
+    snapshotInitialized: snapshotMarksInitialized(snapshot),
+    snapshotIsFactoryDefault: snapshot
+      ? catalogMatchesDefaults(snapshot.services)
+      : null,
+  };
+}
+
+export function getReplicaInventory() {
+  return getReplicaDataDirs().map(inspectReplicaDir);
+}
+
 export function getPersistStatus() {
   const snapshot = readAdminSnapshot();
   const custom = readBestCustomSnapshot();
@@ -385,5 +429,7 @@ export function getPersistStatus() {
     snapshotSourcePath: chosen?.sourcePath || null,
     snapshotIsFactoryDefault: chosen ? catalogMatchesDefaults(chosen.services) : null,
     hadCustomSnapshot: Boolean(custom),
+    replicas: getReplicaInventory(),
+    lastPersist: lastPersistResult,
   };
 }

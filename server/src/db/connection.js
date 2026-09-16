@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { JsonDatabase } from "./jsonDb.js";
+import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +79,16 @@ let db;
 let activeDbPath;
 let dbEngine = "none";
 let lastMigration = { migrated: false, reason: "not-run" };
+let lastInitStatus = {
+  resolvedDir: null,
+  primaryHadStore: null,
+  donorDir: null,
+  donorCopied: false,
+};
+
+export function getLastInitStatus() {
+  return { ...lastInitStatus, migration: lastMigration };
+}
 
 export function getDataDir() {
   return DATA_DIR;
@@ -217,9 +228,51 @@ export function canWriteDir(dir) {
   }
 }
 
-function storeArtifactsPresent(dir) {
+export function storeArtifactsPresent(dir) {
   if (!dir || !fs.existsSync(dir)) return false;
   return STORE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
+}
+
+function peekSnapshotServices(dir) {
+  try {
+    const parsed = JSON.parse(
+      fs.readFileSync(path.join(dir, "admin-state.json"), "utf8"),
+    );
+    return Array.isArray(parsed?.services) ? parsed.services : null;
+  } catch {
+    return null;
+  }
+}
+
+function donorScore(dir) {
+  if (!storeArtifactsPresent(dir)) return 0;
+  const services = peekSnapshotServices(dir);
+  if (!services || services.length === 0) return 1;
+  const signature = services
+    .map((row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`)
+    .sort()
+    .join("\n");
+  const factory = DEFAULT_SERVICES.map(
+    (row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`,
+  )
+    .sort()
+    .join("\n");
+  return signature === factory ? 2 : 3;
+}
+
+function findDonorDataDir(targetDir) {
+  const target = path.resolve(targetDir);
+  let best = null;
+  let bestScore = 0;
+  for (const dir of getCatalogSearchDirs()) {
+    if (dir === target) continue;
+    const score = donorScore(dir);
+    if (score > bestScore) {
+      best = dir;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 export function migrateLegacyDataIfNeeded(
@@ -291,15 +344,6 @@ export function resolveDataDir(options = {}) {
   return LEGACY_APP_DATA_DIR;
 }
 
-function findDonorDataDir(targetDir) {
-  const target = path.resolve(targetDir);
-  for (const dir of getCatalogSearchDirs()) {
-    if (dir === target) continue;
-    if (storeArtifactsPresent(dir)) return dir;
-  }
-  return null;
-}
-
 function applyDataDir(dir) {
   DATA_DIR = path.resolve(dir);
   UPLOADS_DIR = path.join(DATA_DIR, "uploads");
@@ -365,6 +409,13 @@ export function initDatabase(dbPath, options = {}) {
   hostDurableScan = options.hostDurableScan ?? !explicitStore;
 
   const resolvedDir = resolveDataDir({ ...options, dbPath });
+  const primaryHadStore = storeArtifactsPresent(resolvedDir);
+  lastInitStatus = {
+    resolvedDir: path.resolve(resolvedDir),
+    primaryHadStore,
+    donorDir: null,
+    donorCopied: false,
+  };
   if (!explicitStore && !options.skipMigrate) {
     const legacyHint = options.legacyDataDir || LEGACY_APP_DATA_DIR;
     migrateLegacyDataIfNeeded(resolvedDir, legacyHint);
@@ -377,7 +428,11 @@ export function initDatabase(dbPath, options = {}) {
     }
     if (!storeArtifactsPresent(resolvedDir)) {
       const donor = findDonorDataDir(resolvedDir);
-      if (donor) migrateLegacyDataIfNeeded(resolvedDir, donor);
+      lastInitStatus.donorDir = donor;
+      if (donor) {
+        migrateLegacyDataIfNeeded(resolvedDir, donor);
+        lastInitStatus.donorCopied = Boolean(getLastMigration().migrated);
+      }
     }
   } else if (options.legacyDataDir && !options.skipMigrate) {
     migrateLegacyDataIfNeeded(resolvedDir, options.legacyDataDir);
@@ -446,6 +501,12 @@ export function closeDatabase() {
   dbEngine = "none";
   extraDataDirs = [];
   hostDurableScan = true;
+  lastInitStatus = {
+    resolvedDir: null,
+    primaryHadStore: null,
+    donorDir: null,
+    donorCopied: false,
+  };
 }
 
 export { activeDbPath };

@@ -136,10 +136,11 @@ export function seedDatabase() {
   applyDefaultServicePhotos();
 
   const liveCount = countServices();
+  let persistResult = null;
   if (seed.seeded) {
-    persistAdminState({ protectCustom: true });
+    persistResult = persistAdminState({ protectCustom: true });
   } else if (liveCount > 0) {
-    persistAdminState();
+    persistResult = persistAdminState();
   }
 
   lastSeedResult = {
@@ -149,6 +150,8 @@ export function seedDatabase() {
     hydrated,
     catalogReset: false,
     seedReason: seed.reason,
+    persistWrote: persistResult?.wrote ?? 0,
+    persistSkippedCustom: persistResult?.skippedCustom || [],
   };
   return lastSeedResult;
 }
