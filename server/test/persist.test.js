@@ -10,7 +10,12 @@ import {
   getLastMigration,
   initDatabase,
 } from "../src/db/connection.js";
-import { readAdminSnapshot, withoutPersist } from "../src/db/persist.js";
+import {
+  catalogMatchesDefaults,
+  readAdminSnapshot,
+  withoutPersist,
+  writeAdminSnapshot,
+} from "../src/db/persist.js";
 import { getHealthPayload } from "../src/health.js";
 import { seedDatabase } from "../src/db/seed.js";
 import {
@@ -197,7 +202,7 @@ describe("admin catalog persistence", () => {
     const prevDataDir = process.env.DATA_DIR;
     process.env.DATA_DIR = durable;
     try {
-      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData });
+      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData, hostDurableScan: false });
       const first = seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(getDataDir(), path.resolve(durable));
@@ -217,7 +222,7 @@ describe("admin catalog persistence", () => {
       fs.rmSync(ephemeralAppData, { recursive: true, force: true });
       assert.equal(fs.existsSync(path.join(durable, "globalstore.db")), true);
 
-      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData });
+      initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData, hostDurableScan: false });
       const afterRestart = seedDatabase();
       assert.equal(afterRestart.catalogSeededThisBoot, false);
       assert.equal(afterRestart.servicesSeeded, false);
@@ -250,7 +255,7 @@ describe("admin catalog persistence", () => {
     const prevDataDir = process.env.DATA_DIR;
     process.env.DATA_DIR = durable;
     try {
-      initDatabase(undefined, { skipMigrate: true });
+      initDatabase(undefined, { skipMigrate: true, hostDurableScan: false });
       const first = seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(listServices().length, DEFAULT_SERVICES.length);
@@ -258,7 +263,7 @@ describe("admin catalog persistence", () => {
       assert.ok(youtubeDefault.nameEn.includes("YouTube Premium"));
 
       closeDatabase();
-      initDatabase(undefined, { skipMigrate: true });
+      initDatabase(undefined, { skipMigrate: true, hostDurableScan: false });
       const second = seedDatabase();
       assert.equal(second.catalogSeededThisBoot, false);
       assert.equal(second.servicesSeeded, false);
@@ -329,5 +334,246 @@ describe("admin catalog persistence", () => {
 
     closeDatabase();
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("hydrates a custom replica after /local is wiped and does not factory-seed", () => {
+    const localDir = tempDir();
+    const rootDir = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = localDir;
+    try {
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      seedDatabase();
+      updateService("youtube-premium", { nameEn: "YouTube Premium" });
+      updateService("canva-pro", { nameEn: "Canva Pro" });
+      assert.equal(fs.existsSync(path.join(rootDir, "admin-state.json")), true);
+
+      closeDatabase();
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.mkdirSync(localDir, { recursive: true });
+
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      const afterWipe = seedDatabase();
+      assert.equal(afterWipe.catalogSeededThisBoot, false);
+      assert.equal(afterWipe.hydrated.restoredServices, true);
+      assert.equal(afterWipe.hydrated.hadCustomSnapshot, true);
+      assert.equal(
+        listServices().find((s) => s.id === "youtube-premium").nameEn,
+        "YouTube Premium",
+      );
+      assert.equal(listServices().find((s) => s.id === "canva-pro").nameEn, "Canva Pro");
+
+      const health = getHealthPayload();
+      assert.equal(health.catalogSeededThisBoot, false);
+      assert.equal(health.hadCustomSnapshot, true);
+      assert.equal(health.hydratedRestoredServices, true);
+      assert.equal(health.snapshotIsFactoryDefault, false);
+      assert.ok(health.snapshotSourcePath);
+      assert.ok(Array.isArray(health.snapshotWritePaths));
+      assert.ok(health.replicaDataDirs.some((dir) => dir === path.resolve(rootDir)));
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("never overwrites a custom replica with a factory-seed persist", () => {
+    const localDir = tempDir();
+    const rootDir = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = localDir;
+    try {
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      seedDatabase();
+      updateService("youtube-premium", { nameEn: "YouTube Premium" });
+      const customBefore = JSON.parse(
+        fs.readFileSync(path.join(rootDir, "admin-state.json"), "utf8"),
+      );
+
+      writeAdminSnapshot({ services: DEFAULT_SERVICES, settings: {} });
+      const customAfter = JSON.parse(
+        fs.readFileSync(path.join(rootDir, "admin-state.json"), "utf8"),
+      );
+      assert.equal(
+        customAfter.services.find((s) => s.id === "youtube-premium").nameEn,
+        "YouTube Premium",
+      );
+      assert.equal(catalogMatchesDefaults(customAfter.services), false);
+      assert.equal(customAfter.savedAt, customBefore.savedAt);
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("prefers an older custom snapshot over a newer factory snapshot", () => {
+    const customDir = tempDir();
+    const factoryDir = tempDir();
+    const dbPath = path.join(factoryDir, "store.db");
+
+    initDatabase(path.join(customDir, "store.db"));
+    seedDatabase();
+    updateService("youtube-premium", { nameEn: "YouTube Premium" });
+    const custom = JSON.parse(fs.readFileSync(path.join(customDir, "admin-state.json"), "utf8"));
+    custom.savedAt = "2026-01-01T00:00:00.000Z";
+    fs.writeFileSync(path.join(customDir, "admin-state.json"), `${JSON.stringify(custom)}\n`);
+    closeDatabase();
+
+    initDatabase(dbPath, {
+      extraDataDirs: [customDir],
+      hostDurableScan: false,
+    });
+    fs.writeFileSync(
+      path.join(factoryDir, "admin-state.json"),
+      `${JSON.stringify({
+        version: 1,
+        generation: 4,
+        savedAt: "2026-09-15T21:43:00.000Z",
+        services: DEFAULT_SERVICES,
+        settings: {},
+      })}\n`,
+    );
+    closeDatabase();
+    initDatabase(dbPath, {
+      extraDataDirs: [customDir],
+      hostDurableScan: false,
+    });
+    const result = seedDatabase();
+    assert.equal(result.hydrated.hadCustomSnapshot, true);
+    assert.equal(result.catalogSeededThisBoot, false);
+    assert.equal(
+      listServices().find((s) => s.id === "youtube-premium").nameEn,
+      "YouTube Premium",
+    );
+
+    closeDatabase();
+    fs.rmSync(customDir, { recursive: true, force: true });
+    fs.rmSync(factoryDir, { recursive: true, force: true });
+  });
+
+  it("restores a smaller custom catalog over factory defaults", () => {
+    const dir = tempDir();
+    const dbPath = path.join(dir, "store.db");
+    initDatabase(dbPath);
+    seedDatabase();
+    const victim = DEFAULT_SERVICES[1].id;
+    assert.equal(deleteService(victim), true);
+    const remaining = listServices().length;
+    const custom = JSON.parse(fs.readFileSync(path.join(dir, "admin-state.json"), "utf8"));
+
+    withoutPersist(() => replaceAllServices(DEFAULT_SERVICES));
+    fs.writeFileSync(path.join(dir, "admin-state.json"), `${JSON.stringify(custom)}\n`);
+    const restored = seedDatabase();
+    assert.equal(restored.hydrated.restoredServices, true);
+    assert.equal(listServices().length, remaining);
+    assert.equal(
+      listServices().some((s) => s.id === victim),
+      false,
+    );
+
+    closeDatabase();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("restores replica offers without factory-seeding after a primary wipe", () => {
+    const localDir = tempDir();
+    const rootDir = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = localDir;
+    const expires = new Date(Date.now() + 86_400_000).toISOString();
+    try {
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      seedDatabase();
+      updateService("youtube-premium", {
+        nameEn: "YouTube Premium",
+        offerType: "special",
+        offerExpiresAt: expires,
+      });
+
+      closeDatabase();
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.mkdirSync(localDir, { recursive: true });
+
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      const afterWipe = seedDatabase();
+      assert.equal(afterWipe.catalogSeededThisBoot, false);
+      assert.notEqual(afterWipe.seedReason, "first-boot");
+      const youtube = listServices().find((s) => s.id === "youtube-premium");
+      assert.equal(youtube.nameEn, "YouTube Premium");
+      assert.equal(youtube.offerType, "special");
+      assert.ok(youtube.offerExpiresAt);
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves an empty catalog empty after prior seed and does not persist factory defaults", () => {
+    const localDir = tempDir();
+    const rootDir = tempDir();
+    const prevDataDir = process.env.DATA_DIR;
+    process.env.DATA_DIR = localDir;
+    try {
+      fs.mkdirSync(rootDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(rootDir, "admin-state.json"),
+        `${JSON.stringify({
+          version: 1,
+          generation: 4,
+          savedAt: "2026-09-15T21:43:00.000Z",
+          services: [],
+          settings: { catalogSeeded: true },
+        })}\n`,
+      );
+
+      initDatabase(undefined, {
+        skipMigrate: true,
+        extraDataDirs: [rootDir],
+        hostDurableScan: false,
+      });
+      const again = seedDatabase();
+      assert.equal(again.catalogSeededThisBoot, false);
+      assert.equal(again.seedReason, "previously-seeded-leave-empty");
+      assert.equal(listServices().length, 0);
+      const replica = JSON.parse(fs.readFileSync(path.join(rootDir, "admin-state.json"), "utf8"));
+      assert.deepEqual(replica.services, []);
+      assert.equal(catalogMatchesDefaults(replica.services), false);
+      assert.equal(replica.settings.catalogSeeded, true);
+    } finally {
+      closeDatabase();
+      if (prevDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = prevDataDir;
+      fs.rmSync(localDir, { recursive: true, force: true });
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
   });
 });

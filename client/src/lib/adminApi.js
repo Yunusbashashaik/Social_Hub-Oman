@@ -1,4 +1,3 @@
-import { SERVICES } from "../data/catalog.js";
 import { filterPublicServices } from "@shared/offers.js";
 
 function trimSlash(value) {
@@ -306,7 +305,7 @@ export function getCachedPublicSettings() {
 export function getCachedPublicServices() {
   const cached = readLiveCache(LIVE_SERVICES_KEY);
   if (Array.isArray(cached)) return cached;
-  return JSON.parse(JSON.stringify(SERVICES));
+  return [];
 }
 
 export function rememberLiveServices(services) {
@@ -332,7 +331,7 @@ export async function fetchPublicServices() {
   }
   const cached = readLiveCache(LIVE_SERVICES_KEY);
   if (Array.isArray(cached)) return cached;
-  return JSON.parse(JSON.stringify(SERVICES));
+  return [];
 }
 
 export async function fetchPublicSettings() {

@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { JsonDatabase } from "./jsonDb.js";
+import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -15,10 +16,16 @@ export const APP_ROOT = path.join(__dirname, "..", "..", "..");
 export const LEGACY_APP_DATA_DIR = path.join(__dirname, "..", "..", "data");
 export const DEFAULT_DURABLE_DIRNAME = "socialhub-oman-data";
 export const ROOT_HOST_DATA_DIR = `/root/${DEFAULT_DURABLE_DIRNAME}`;
+export const LOCAL_HOST_DATA_DIR = `/local/${DEFAULT_DURABLE_DIRNAME}`;
 
 export let DATA_DIR = LEGACY_APP_DATA_DIR;
 export let UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 export let SERVICE_UPLOADS_DIR = path.join(UPLOADS_DIR, "services");
+
+/** Extra replica dirs (tests + optional SOCIALHUB_DATA_DIRS). */
+let extraDataDirs = [];
+/** Scan /root, /local, $HOME and other host volumes for snapshots. Off for isolated test stores. */
+let hostDurableScan = true;
 
 const STORE_NAMES = [
   "globalstore.db",
@@ -72,6 +79,16 @@ let db;
 let activeDbPath;
 let dbEngine = "none";
 let lastMigration = { migrated: false, reason: "not-run" };
+let lastInitStatus = {
+  resolvedDir: null,
+  primaryHadStore: null,
+  donorDir: null,
+  donorCopied: false,
+};
+
+export function getLastInitStatus() {
+  return { ...lastInitStatus, migration: lastMigration };
+}
 
 export function getDataDir() {
   return DATA_DIR;
@@ -95,22 +112,31 @@ export function isInsideAppTree(dir, appRoot = APP_ROOT) {
   return resolved === root || resolved.startsWith(`${root}${path.sep}`);
 }
 
+export function homeHostDataDir(homeDir = os.homedir()) {
+  return path.join(path.resolve(homeDir), DEFAULT_DURABLE_DIRNAME);
+}
+
 /**
- * Preferred durable directory. Never uses a folder inside `/app` when that is
- * the Published App tree — Restart Published App wipes `/app`.
+ * Preferred durable directory. `/root/socialhub-oman-data` first — never a
+ * folder inside `/app`. `/local` is a replica, not the preferred empty default
+ * (GoDaddy overnight recycles have wiped `/local`).
  */
 export function defaultDurableDataDir(
   appRoot = APP_ROOT,
   homeDir = os.homedir(),
 ) {
+  if (!isInsideAppTree(ROOT_HOST_DATA_DIR, appRoot)) {
+    return ROOT_HOST_DATA_DIR;
+  }
+  const homeCandidate = homeHostDataDir(homeDir);
+  if (!isInsideAppTree(homeCandidate, appRoot)) {
+    return homeCandidate;
+  }
   const parent = path.resolve(appRoot, "..");
   const fsRoot = path.parse(path.resolve(appRoot)).root;
   if (parent !== fsRoot && parent !== path.sep) {
-    return path.join(parent, DEFAULT_DURABLE_DIRNAME);
-  }
-  const homeCandidate = path.join(path.resolve(homeDir), DEFAULT_DURABLE_DIRNAME);
-  if (!isInsideAppTree(homeCandidate, appRoot)) {
-    return homeCandidate;
+    const sibling = path.join(parent, DEFAULT_DURABLE_DIRNAME);
+    if (!isInsideAppTree(sibling, appRoot)) return sibling;
   }
   return ROOT_HOST_DATA_DIR;
 }
@@ -120,14 +146,15 @@ export function durableDataDirCandidates(appRoot = APP_ROOT, homeDir = os.homedi
   const fsRoot = path.parse(path.resolve(appRoot)).root;
   const list = [
     ROOT_HOST_DATA_DIR,
-    path.join(path.resolve(homeDir), DEFAULT_DURABLE_DIRNAME),
+    homeHostDataDir(homeDir),
+    LOCAL_HOST_DATA_DIR,
     "/var/lib/socialhub-oman-data",
     "/opt/socialhub-oman-data",
     "/data/socialhub-oman-data",
     "/mnt/socialhub-oman-data",
   ];
   if (parent !== fsRoot && parent !== path.sep) {
-    list.unshift(path.join(parent, DEFAULT_DURABLE_DIRNAME));
+    list.push(path.join(parent, DEFAULT_DURABLE_DIRNAME));
   }
   const unique = [];
   const seen = new Set();
@@ -141,7 +168,54 @@ export function durableDataDirCandidates(appRoot = APP_ROOT, homeDir = os.homedi
   return unique;
 }
 
-function canWriteDir(dir) {
+function uniqueResolvedDirs(dirs) {
+  const unique = [];
+  const seen = new Set();
+  for (const item of dirs) {
+    if (!item) continue;
+    const resolved = path.resolve(item);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    unique.push(resolved);
+  }
+  return unique;
+}
+
+function parseExtraEnvDirs() {
+  const raw = process.env.SOCIALHUB_DATA_DIRS || "";
+  return raw
+    .split(/[:;,]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Replica locations for admin snapshots: active DATA_DIR, env DATA_DIR,
+ * `/local`, `/root`, `$HOME`, plus extras. Used for both read and write.
+ */
+export function getReplicaDataDirs() {
+  return uniqueResolvedDirs([
+    DATA_DIR,
+    process.env.DATA_DIR,
+    ...extraDataDirs,
+    ...parseExtraEnvDirs(),
+    ...(hostDurableScan
+      ? [LOCAL_HOST_DATA_DIR, ROOT_HOST_DATA_DIR, homeHostDataDir()]
+      : []),
+  ]);
+}
+
+/** All locations that may hold a surviving catalog (replicas + legacy + other volumes). */
+export function getCatalogSearchDirs() {
+  return uniqueResolvedDirs([
+    ...getReplicaDataDirs(),
+    LEGACY_APP_DATA_DIR,
+    ...(hostDurableScan ? durableDataDirCandidates() : []),
+    activeDbPath ? path.dirname(path.resolve(activeDbPath)) : null,
+  ]);
+}
+
+export function canWriteDir(dir) {
   try {
     fs.mkdirSync(dir, { recursive: true });
     fs.accessSync(dir, fs.constants.W_OK);
@@ -154,9 +228,51 @@ function canWriteDir(dir) {
   }
 }
 
-function storeArtifactsPresent(dir) {
+export function storeArtifactsPresent(dir) {
   if (!dir || !fs.existsSync(dir)) return false;
   return STORE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
+}
+
+function peekSnapshotServices(dir) {
+  try {
+    const parsed = JSON.parse(
+      fs.readFileSync(path.join(dir, "admin-state.json"), "utf8"),
+    );
+    return Array.isArray(parsed?.services) ? parsed.services : null;
+  } catch {
+    return null;
+  }
+}
+
+function donorScore(dir) {
+  if (!storeArtifactsPresent(dir)) return 0;
+  const services = peekSnapshotServices(dir);
+  if (!services || services.length === 0) return 1;
+  const signature = services
+    .map((row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`)
+    .sort()
+    .join("\n");
+  const factory = DEFAULT_SERVICES.map(
+    (row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`,
+  )
+    .sort()
+    .join("\n");
+  return signature === factory ? 2 : 3;
+}
+
+function findDonorDataDir(targetDir) {
+  const target = path.resolve(targetDir);
+  let best = null;
+  let bestScore = 0;
+  for (const dir of getCatalogSearchDirs()) {
+    if (dir === target) continue;
+    const score = donorScore(dir);
+    if (score > bestScore) {
+      best = dir;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 export function migrateLegacyDataIfNeeded(
@@ -196,6 +312,20 @@ function legacyLocationsToMigrate(appRoot = APP_ROOT) {
   ];
 }
 
+/**
+ * Prefer a directory that already has a catalog over the first empty writable
+ * path. Empty `/local` must not win when `/root` or `$HOME` still has data.
+ */
+export function selectDataDirFromCandidates(
+  candidates,
+  { canWrite = canWriteDir, hasStore = storeArtifactsPresent } = {},
+) {
+  const existing = candidates.filter((dir) => hasStore(dir) && canWrite(dir));
+  if (existing.length) return existing[0];
+  const writable = candidates.find((dir) => canWrite(dir));
+  return writable || null;
+}
+
 export function resolveDataDir(options = {}) {
   if (options.dataDir) return path.resolve(options.dataDir);
   if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
@@ -207,9 +337,8 @@ export function resolveDataDir(options = {}) {
   if (process.env.JSON_DATABASE_PATH) {
     return path.dirname(path.resolve(process.env.JSON_DATABASE_PATH));
   }
-  for (const dir of durableDataDirCandidates()) {
-    if (canWriteDir(dir)) return dir;
-  }
+  const selected = selectDataDirFromCandidates(durableDataDirCandidates());
+  if (selected) return selected;
   const preferred = defaultDurableDataDir();
   if (canWriteDir(preferred)) return preferred;
   return LEGACY_APP_DATA_DIR;
@@ -275,8 +404,18 @@ export function flushActiveStore() {
 }
 
 export function initDatabase(dbPath, options = {}) {
-  const resolvedDir = resolveDataDir({ ...options, dbPath });
+  extraDataDirs = (options.extraDataDirs || []).map((dir) => path.resolve(dir));
   const explicitStore = Boolean(dbPath || options.jsonPath || options.dataDir);
+  hostDurableScan = options.hostDurableScan ?? !explicitStore;
+
+  const resolvedDir = resolveDataDir({ ...options, dbPath });
+  const primaryHadStore = storeArtifactsPresent(resolvedDir);
+  lastInitStatus = {
+    resolvedDir: path.resolve(resolvedDir),
+    primaryHadStore,
+    donorDir: null,
+    donorCopied: false,
+  };
   if (!explicitStore && !options.skipMigrate) {
     const legacyHint = options.legacyDataDir || LEGACY_APP_DATA_DIR;
     migrateLegacyDataIfNeeded(resolvedDir, legacyHint);
@@ -285,6 +424,14 @@ export function initDatabase(dbPath, options = {}) {
         if (path.resolve(extra) === path.resolve(legacyHint)) continue;
         migrateLegacyDataIfNeeded(resolvedDir, extra);
         if (storeArtifactsPresent(resolvedDir)) break;
+      }
+    }
+    if (!storeArtifactsPresent(resolvedDir)) {
+      const donor = findDonorDataDir(resolvedDir);
+      lastInitStatus.donorDir = donor;
+      if (donor) {
+        migrateLegacyDataIfNeeded(resolvedDir, donor);
+        lastInitStatus.donorCopied = Boolean(getLastMigration().migrated);
       }
     }
   } else if (options.legacyDataDir && !options.skipMigrate) {
@@ -352,6 +499,14 @@ export function closeDatabase() {
   }
   activeDbPath = undefined;
   dbEngine = "none";
+  extraDataDirs = [];
+  hostDurableScan = true;
+  lastInitStatus = {
+    resolvedDir: null,
+    primaryHadStore: null,
+    donorDir: null,
+    donorCopied: false,
+  };
 }
 
 export { activeDbPath };

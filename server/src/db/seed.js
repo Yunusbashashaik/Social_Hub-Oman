@@ -1,8 +1,12 @@
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import {
   bindPersist,
+  catalogInitializedOnReplicas,
+  hasAnyAdminSnapshot,
   hydratePersistedAdminState,
   persistAdminState,
+  readAdminSnapshot,
+  readBestCustomSnapshot,
   withoutPersist,
 } from "./persist.js";
 import {
@@ -30,6 +34,7 @@ bindPersist({
   replaceAllServices,
   replaceAllSettings,
   getServiceImageBlob,
+  getSetting,
 });
 
 let lastSeedResult = {
@@ -38,21 +43,53 @@ let lastSeedResult = {
   catalogSeededThisBoot: false,
   hydrated: { restored: false },
   catalogReset: false,
+  seedReason: "not-run",
 };
 
 export function getLastSeedResult() {
   return lastSeedResult;
 }
 
+function catalogWasInitialized() {
+  if (getSetting("catalogSeeded") === true) return true;
+  if (readBestCustomSnapshot()) return true;
+  if (catalogInitializedOnReplicas()) return true;
+  if (hasAnyAdminSnapshot()) return true;
+  return false;
+}
+
+function restoreReplicaIfEmpty() {
+  if (countServices() > 0) return false;
+  const chosen = readBestCustomSnapshot() || readAdminSnapshot();
+  const services = Array.isArray(chosen?.services) ? chosen.services : [];
+  if (!chosen || services.length === 0) return false;
+  withoutPersist(() => {
+    replaceAllServices(services);
+    if (chosen.settings && typeof chosen.settings === "object") {
+      replaceAllSettings(chosen.settings);
+    }
+  });
+  setSetting("catalogSeeded", true);
+  return true;
+}
+
+/**
+ * Insert DEFAULT_SERVICES only on a true first boot: empty store, no
+ * catalogSeeded flag, and no admin snapshot on any replica path.
+ * Never factory-fills after the catalog has been initialized.
+ */
 function seedDefaultCatalogIfEmpty() {
   if (countServices() > 0) {
     setSetting("catalogSeeded", true);
-    return false;
+    return { seeded: false, reason: "already-populated" };
   }
 
-  // Catalog was already initialized (admin deleted every row). Do not re-insert defaults.
-  if (getSetting("catalogSeeded") === true) {
-    return false;
+  if (restoreReplicaIfEmpty()) {
+    return { seeded: false, reason: "restored-replica" };
+  }
+
+  if (catalogWasInitialized()) {
+    return { seeded: false, reason: "previously-seeded-leave-empty" };
   }
 
   withoutPersist(() => {
@@ -67,7 +104,7 @@ function seedDefaultCatalogIfEmpty() {
     });
   });
   setSetting("catalogSeeded", true);
-  return true;
+  return { seeded: true, reason: "first-boot" };
 }
 
 function hasCustomArtwork(row) {
@@ -95,16 +132,26 @@ function applyDefaultServicePhotos() {
 export function seedDatabase() {
   const settingsSeeded = withoutPersist(() => seedSettingsIfEmpty());
   const hydrated = hydratePersistedAdminState();
-  const servicesSeeded = seedDefaultCatalogIfEmpty();
+  const seed = seedDefaultCatalogIfEmpty();
   applyDefaultServicePhotos();
-  persistAdminState();
+
+  const liveCount = countServices();
+  let persistResult = null;
+  if (seed.seeded) {
+    persistResult = persistAdminState({ protectCustom: true });
+  } else if (liveCount > 0) {
+    persistResult = persistAdminState();
+  }
 
   lastSeedResult = {
-    servicesSeeded,
+    servicesSeeded: seed.seeded,
     settingsSeeded,
-    catalogSeededThisBoot: servicesSeeded,
+    catalogSeededThisBoot: seed.seeded,
     hydrated,
     catalogReset: false,
+    seedReason: seed.reason,
+    persistWrote: persistResult?.wrote ?? 0,
+    persistSkippedCustom: persistResult?.skippedCustom || [],
   };
   return lastSeedResult;
 }

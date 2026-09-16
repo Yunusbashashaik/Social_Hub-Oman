@@ -3,7 +3,11 @@ import path from "path";
 import {
   flushActiveStore,
   getActiveStorePath,
+  getCatalogSearchDirs,
   getDataDir,
+  getReplicaDataDirs,
+  isInsideAppTree,
+  APP_ROOT,
   LEGACY_APP_DATA_DIR,
 } from "./connection.js";
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
@@ -13,8 +17,20 @@ const SNAPSHOT_NAME = "admin-state.json";
 /** Snapshot format version. Never used to wipe or replace a live catalog. */
 export const CATALOG_GENERATION = 4;
 
+let lastPersistResult = {
+  wrote: 0,
+  skippedCustom: [],
+  attempted: [],
+  savedAt: null,
+  factoryPersistBlocked: false,
+};
+
 let source = null;
 let persistDisabled = 0;
+
+export function getLastPersistResult() {
+  return lastPersistResult;
+}
 
 export function bindPersist(nextSource) {
   source = nextSource;
@@ -29,19 +45,31 @@ export function withoutPersist(fn) {
   }
 }
 
+function snapshotPathFor(dir) {
+  return path.join(path.resolve(dir), SNAPSHOT_NAME);
+}
+
 export function getSnapshotWritePaths() {
   const dirs = new Set();
   const storePath = getActiveStorePath();
   if (storePath) dirs.add(path.dirname(path.resolve(storePath)));
+  for (const dir of getReplicaDataDirs()) {
+    if (isInsideAppTree(dir, APP_ROOT) && path.resolve(dir) === path.resolve(LEGACY_APP_DATA_DIR)) {
+      continue;
+    }
+    dirs.add(dir);
+  }
   dirs.add(path.resolve(getDataDir()));
   if (process.env.DATA_DIR) dirs.add(path.resolve(process.env.DATA_DIR));
-  return [...dirs].map((dir) => path.join(dir, SNAPSHOT_NAME));
+  return [...dirs].map(snapshotPathFor);
 }
 
 export function getSnapshotPaths() {
   const paths = new Set(getSnapshotWritePaths());
-  paths.add(path.join(path.resolve(LEGACY_APP_DATA_DIR), SNAPSHOT_NAME));
-  paths.add(path.join(path.resolve(getDataDir()), SNAPSHOT_NAME));
+  for (const dir of getCatalogSearchDirs()) {
+    paths.add(snapshotPathFor(dir));
+  }
+  paths.add(snapshotPathFor(LEGACY_APP_DATA_DIR));
   return [...paths];
 }
 
@@ -82,7 +110,7 @@ function serializeServices() {
   });
 }
 
-export function writeAdminSnapshot(state) {
+export function writeAdminSnapshot(state, options = {}) {
   if (!state) return null;
   const payload = {
     version: 1,
@@ -91,9 +119,26 @@ export function writeAdminSnapshot(state) {
     services: Array.isArray(state.services) ? state.services : [],
     settings: state.settings && typeof state.settings === "object" ? state.settings : {},
   };
+  const incomingIsFactory = catalogMatchesDefaults(payload.services);
+  const incomingIsEmpty = payload.services.length === 0;
+  const incomingIsCustom = snapshotIsCustom(payload);
   const body = `${JSON.stringify(payload, null, 2)}\n`;
   let wrote = 0;
-  for (const filePath of getSnapshotWritePaths()) {
+  const skippedCustom = [];
+  const attempted = getSnapshotWritePaths();
+  for (const filePath of attempted) {
+    const existing = readSnapshotFile(filePath);
+    const clobberCustom =
+      snapshotIsCustom(existing) &&
+      (incomingIsFactory || incomingIsEmpty || !incomingIsCustom);
+    if (clobberCustom && options.protectCustom !== false) {
+      skippedCustom.push(filePath);
+      console.error(
+        "Refusing to overwrite custom admin snapshot with factory or empty catalog",
+        filePath,
+      );
+      continue;
+    }
     try {
       atomicWrite(filePath, body);
       wrote += 1;
@@ -101,41 +146,117 @@ export function writeAdminSnapshot(state) {
       console.error("Failed to write admin snapshot", filePath, err?.message || err);
     }
   }
+  lastPersistResult = {
+    wrote,
+    skippedCustom,
+    attempted,
+    savedAt: payload.savedAt,
+    factoryPersistBlocked: incomingIsFactory && skippedCustom.length > 0,
+  };
   if (!wrote) {
+    if (skippedCustom.length) {
+      console.error("Admin snapshot was not written; custom replicas were preserved");
+      return { ...payload, skippedCustom, wrote: 0 };
+    }
     console.error("Admin snapshot was not written to any durable path");
     return null;
   }
-  return payload;
+  return { ...payload, skippedCustom, wrote };
 }
 
-export function persistAdminState() {
+export function persistAdminState(options = {}) {
   if (persistDisabled || !source) return null;
   try {
     flushActiveStore();
-    return writeAdminSnapshot({
-      services: serializeServices(),
-      settings: source.getAllSettings(),
-    });
+    return writeAdminSnapshot(
+      {
+        services: serializeServices(),
+        settings: {
+          ...source.getAllSettings(),
+          catalogSeeded: source.getSetting?.("catalogSeeded") === true,
+        },
+      },
+      options,
+    );
   } catch (err) {
     console.error("Failed to persist admin state", err?.message || err);
     return null;
   }
 }
 
+function readSnapshotFile(filePath) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (!parsed || typeof parsed !== "object") return null;
+    return { ...parsed, sourcePath: filePath };
+  } catch {
+    return null;
+  }
+}
+
+export function snapshotIsCustom(snapshot) {
+  const services = snapshot?.services;
+  if (!Array.isArray(services) || services.length === 0) return false;
+  return !catalogMatchesDefaults(services);
+}
+
+export function snapshotMarksInitialized(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return false;
+  if (snapshot.settings && snapshot.settings.catalogSeeded === true) return true;
+  if (Array.isArray(snapshot.services) && snapshot.services.length > 0) return true;
+  return snapshotIsCustom(snapshot);
+}
+
+export function hasAnyAdminSnapshot() {
+  return listAdminSnapshots().length > 0;
+}
+
+export function catalogInitializedOnReplicas() {
+  return listAdminSnapshots().some(snapshotMarksInitialized);
+}
+
+function snapshotRank(snapshot) {
+  return {
+    custom: snapshotIsCustom(snapshot) ? 1 : 0,
+    savedAt: Date.parse(snapshot?.savedAt || 0) || 0,
+    services: Array.isArray(snapshot?.services) ? snapshot.services.length : 0,
+  };
+}
+
+export function compareSnapshots(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const ra = snapshotRank(a);
+  const rb = snapshotRank(b);
+  if (ra.custom !== rb.custom) return ra.custom > rb.custom ? a : b;
+  if (ra.savedAt !== rb.savedAt) return ra.savedAt > rb.savedAt ? a : b;
+  if (ra.services !== rb.services) return ra.services > rb.services ? a : b;
+  return a;
+}
+
+export function listAdminSnapshots() {
+  const found = [];
+  const seen = new Set();
+  for (const filePath of getSnapshotPaths()) {
+    const resolved = path.resolve(filePath);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    const parsed = readSnapshotFile(resolved);
+    if (parsed) found.push(parsed);
+  }
+  return found;
+}
+
 export function readAdminSnapshot() {
   let best = null;
-  for (const filePath of getSnapshotPaths()) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      if (!parsed || typeof parsed !== "object") continue;
-      if (!best || Date.parse(parsed.savedAt || 0) >= Date.parse(best.savedAt || 0)) {
-        best = parsed;
-      }
-    } catch {
-      /* missing or unreadable */
-    }
+  for (const snapshot of listAdminSnapshots()) {
+    best = compareSnapshots(best, snapshot);
   }
   return best;
+}
+
+export function readBestCustomSnapshot() {
+  return listAdminSnapshots().filter(snapshotIsCustom).reduce(compareSnapshots, null);
 }
 
 function settingsSignature(settings) {
@@ -173,6 +294,8 @@ function serviceSignature(service) {
     String(service.descriptionEn || ""),
     String(service.descriptionAr || ""),
     outOfStock,
+    String(service.offerType || "none"),
+    String(service.offerExpiresAt || ""),
   ].join("|");
 }
 
@@ -188,16 +311,30 @@ export function catalogMatchesDefaults(services) {
 }
 
 export function hydratePersistedAdminState() {
-  if (!source) return { restored: false, reason: "unbound" };
+  if (!source) {
+    return { restored: false, reason: "unbound", hadCustomSnapshot: false };
+  }
   const snapshot = readAdminSnapshot();
-  if (!snapshot) return { restored: false, reason: "no-snapshot" };
+  const customSnapshot = readBestCustomSnapshot();
+  const hadCustomSnapshot = Boolean(customSnapshot);
+  if (!snapshot) {
+    return {
+      restored: false,
+      reason: "no-snapshot",
+      hadCustomSnapshot: false,
+      sourcePath: null,
+    };
+  }
 
+  const chosen = customSnapshot || snapshot;
   const currentSettings = source.getAllSettings();
-  const snapSettings = snapshot.settings && typeof snapshot.settings === "object" ? snapshot.settings : null;
-  const snapServices = Array.isArray(snapshot.services) ? snapshot.services : [];
+  const snapSettings =
+    chosen.settings && typeof chosen.settings === "object" ? chosen.settings : null;
+  const snapServices = Array.isArray(chosen.services) ? chosen.services : [];
 
   let restoredServices = false;
   let restoredSettings = false;
+  let reason = "snapshot-not-applied";
 
   withoutPersist(() => {
     const currentServices = source.listServices();
@@ -205,12 +342,12 @@ export function hydratePersistedAdminState() {
     const currentIsDefault = catalogMatchesDefaults(currentServices);
     const snapshotDiffers =
       catalogSignature(currentServices) !== catalogSignature(snapServices);
-    const snapshotCanReplaceDefaults =
-      snapServices.length >= currentServices.length && snapServices.length > 0;
+    const chosenIsCustom = snapshotIsCustom(chosen);
+
     if (
       snapServices.length > 0 &&
-      (emptyCatalog ||
-        (currentIsDefault && snapshotDiffers && snapshotCanReplaceDefaults))
+      snapshotDiffers &&
+      (emptyCatalog || (currentIsDefault && chosenIsCustom))
     ) {
       source.replaceAllServices(snapServices);
       restoredServices = true;
@@ -221,7 +358,11 @@ export function hydratePersistedAdminState() {
       const currentIsDefaultSettings = settingsMatchDefaults(currentSettings);
       const snapshotDiffersSettings =
         settingsSignature(currentSettings) !== settingsSignature(snapSettings);
-      if (emptySettings || (currentIsDefaultSettings && snapshotDiffersSettings)) {
+      const catalogIsEmptyOrFactory = emptyCatalog || currentIsDefault;
+      if (
+        snapshotDiffersSettings &&
+        (emptySettings || (currentIsDefaultSettings && catalogIsEmptyOrFactory))
+      ) {
         source.replaceAllSettings(snapSettings);
         restoredSettings = true;
       }
@@ -229,25 +370,66 @@ export function hydratePersistedAdminState() {
   });
 
   if (restoredServices || restoredSettings) {
+    reason = "restored";
     console.log(
-      `Restored admin data from snapshot (services=${restoredServices}, settings=${restoredSettings}).`,
+      `Restored admin data from snapshot (services=${restoredServices}, settings=${restoredSettings}, path=${chosen.sourcePath || "unknown"}).`,
     );
     persistAdminState();
+  } else if (!hadCustomSnapshot) {
+    reason = catalogMatchesDefaults(snapServices) ? "factory-snapshot" : "snapshot-not-applied";
+  } else {
+    reason = "live-catalog-kept";
   }
 
   return {
     restored: restoredServices || restoredSettings,
     restoredServices,
     restoredSettings,
-    savedAt: snapshot.savedAt || null,
+    savedAt: chosen.savedAt || null,
+    sourcePath: chosen.sourcePath || null,
+    reason,
+    hadCustomSnapshot,
+    snapshotIsFactoryDefault: catalogMatchesDefaults(snapServices),
   };
+}
+
+export function inspectReplicaDir(dir) {
+  const resolved = path.resolve(dir);
+  const snapshotPath = snapshotPathFor(resolved);
+  const snapshot = readSnapshotFile(snapshotPath);
+  return {
+    dir: resolved,
+    hasDb: fs.existsSync(path.join(resolved, "globalstore.db")),
+    hasJson: fs.existsSync(path.join(resolved, "globalstore.json")),
+    hasSnapshot: Boolean(snapshot),
+    snapshotPath,
+    snapshotSavedAt: snapshot?.savedAt || null,
+    snapshotServices: Array.isArray(snapshot?.services) ? snapshot.services.length : 0,
+    snapshotCustom: snapshotIsCustom(snapshot),
+    snapshotInitialized: snapshotMarksInitialized(snapshot),
+    snapshotIsFactoryDefault: snapshot
+      ? catalogMatchesDefaults(snapshot.services)
+      : null,
+  };
+}
+
+export function getReplicaInventory() {
+  return getReplicaDataDirs().map(inspectReplicaDir);
 }
 
 export function getPersistStatus() {
   const snapshot = readAdminSnapshot();
+  const custom = readBestCustomSnapshot();
+  const chosen = custom || snapshot;
   return {
-    snapshotSavedAt: snapshot?.savedAt || null,
-    snapshotServices: Array.isArray(snapshot?.services) ? snapshot.services.length : 0,
+    snapshotSavedAt: chosen?.savedAt || null,
+    snapshotServices: Array.isArray(chosen?.services) ? chosen.services.length : 0,
     snapshotPaths: getSnapshotPaths(),
+    snapshotWritePaths: getSnapshotWritePaths(),
+    snapshotSourcePath: chosen?.sourcePath || null,
+    snapshotIsFactoryDefault: chosen ? catalogMatchesDefaults(chosen.services) : null,
+    hadCustomSnapshot: Boolean(custom),
+    replicas: getReplicaInventory(),
+    lastPersist: lastPersistResult,
   };
 }
