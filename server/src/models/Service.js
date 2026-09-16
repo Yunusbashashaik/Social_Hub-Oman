@@ -312,14 +312,7 @@ export function replaceAllServices(services) {
   return listServices();
 }
 
-export function seedServicesIfEmpty(defaults) {
-  if (countServices() > 0) return false;
-  replaceAllServices(
-    defaults.map((service, index) => ({
-      ...service,
-      sortOrder: index,
-      imageUrl: service.imageUrl || null,
-    })),
-  );
-  return true;
+export function seedServicesIfEmpty(_defaults) {
+  // Boot-time factory fill lives only in seedDatabase() for true first boot.
+  return false;
 }

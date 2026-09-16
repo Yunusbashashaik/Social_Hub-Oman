@@ -1,8 +1,10 @@
 import {
   APP_ROOT,
   getActiveStorePath,
+  getCatalogSearchDirs,
   getDataDir,
   getDbEngine,
+  getReplicaDataDirs,
   isInsideAppTree,
 } from "./db/connection.js";
 import { getPersistStatus } from "./db/persist.js";
@@ -15,6 +17,7 @@ export function getHealthPayload() {
   const seed = getLastSeedResult();
   const dataDir = getDataDir();
   const storePath = getActiveStorePath();
+  const hydrated = seed.hydrated || {};
   return {
     ok: true,
     service: "global-store-api",
@@ -29,6 +32,18 @@ export function getHealthPayload() {
     dataDirInsideApp: isInsideAppTree(dataDir, APP_ROOT),
     snapshotSavedAt: persist.snapshotSavedAt,
     snapshotServices: persist.snapshotServices,
+    snapshotSourcePath: persist.snapshotSourcePath,
+    snapshotIsFactoryDefault: persist.snapshotIsFactoryDefault,
+    snapshotPaths: persist.snapshotPaths,
+    snapshotWritePaths: persist.snapshotWritePaths,
+    replicaDataDirs: getReplicaDataDirs(),
+    catalogSearchDirs: getCatalogSearchDirs(),
+    hydratedRestored: Boolean(hydrated.restored),
+    hydratedRestoredServices: Boolean(hydrated.restoredServices),
+    hydratedReason: hydrated.reason || null,
+    hydratedSourcePath: hydrated.sourcePath || null,
+    hadCustomSnapshot: Boolean(hydrated.hadCustomSnapshot || persist.hadCustomSnapshot),
+    seedReason: seed.seedReason || null,
     time: new Date().toISOString(),
   };
 }
