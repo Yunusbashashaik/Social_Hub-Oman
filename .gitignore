@@ -13,6 +13,8 @@ server/data/**
 *.db-shm
 *.db-wal
 admin-state.json
+!catalog-backup/admin-state.json
+!catalog-backup/admin-state.backup.json
 *.log
 .DS_Store
 *.webp

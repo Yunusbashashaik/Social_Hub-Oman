@@ -77,7 +77,9 @@ function restoreReplicaIfEmpty() {
 
 /**
  * Insert DEFAULT_SERVICES only when ALLOW_FACTORY_SEED=1 (dev). Production
- * never factory-fills: empty after restore attempts stays empty.
+ * never factory-fills. Empty boots restore the committed catalog-backup
+ * (packaged file or public raw GitHub URL) first, even when that snapshot
+ * matches DEFAULT_SERVICES.
  */
 function seedDefaultCatalogIfEmpty() {
   if (countServices() > 0) {

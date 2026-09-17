@@ -44,7 +44,7 @@ Optional env:
   - `CATALOG_BACKUP_REPO` — `owner/repo` (defaults to `GITHUB_REPOSITORY` if set)
   - `CATALOG_BACKUP_PATH` — default `catalog-backup/admin-state.json`
   - `CATALOG_BACKUP_BRANCH` — default `main`
-  - `CATALOG_BACKUP_URL` — optional HTTPS JSON URL used to **pull** a backup (raw GitHub URL is fine)
+  - `CATALOG_BACKUP_URL` — optional HTTPS JSON URL used to **pull** a backup. When unset, the API reads `https://raw.githubusercontent.com/Yunusbashashaik/Social_Hub-Oman/main/catalog-backup/admin-state.json` (no token). Packaged `catalog-backup/` in the deploy tree is the offline fallback.
 - `ALLOW_FACTORY_SEED=1` — **dev only**. Production must **not** set this. Without it the API never inserts factory catalog names.
 
 ### Admin panel
@@ -89,7 +89,7 @@ If the website and API use different URLs, edit `client/public/runtime-config.js
 window.__GLOBALSTORE_CONFIG__ = { apiUrl: "https://your-node-api-url" };
 ```
 
-Keep **`/root/socialhub-oman-data`** (or the `DATA_DIR` you set) so SQLite and uploads survive GitHub publishes. Also set **off-host backup** env vars so an empty volume auto-restores the live catalog. `GET /api/health` must show `factorySeedDisabled: true`, `offHostBackupConfigured: true` after a token is set, and `catalogSeededThisBoot: false` on a normal boot. `dataDirInsideApp` must be `false`.
+Keep **`/root/socialhub-oman-data`** (or the `DATA_DIR` you set) so SQLite and uploads survive GitHub publishes. Empty boots restore from the committed `catalog-backup/` files and the public GitHub raw URL **without** a token and **without** `ALLOW_FACTORY_SEED`. `GET /api/health` must show `factorySeedDisabled: true`, `offHostBackupConfigured: true`, and `catalogSeededThisBoot: false` on a normal boot. `dataDirInsideApp` must be `false`.
 
 ### GoDaddy Application Manager env (socialhubomr.com)
 

@@ -522,14 +522,6 @@ export async function hydrateOffHostIfEmpty() {
   if (!snapServices.length) {
     return { restored: false, reason: "remote-empty", sourcePath: remote.sourcePath };
   }
-  if (catalogMatchesDefaults(snapServices) && !isFactorySeedAllowed()) {
-    return {
-      restored: false,
-      reason: "remote-factory-blocked",
-      snapshotIsFactoryDefault: true,
-      sourcePath: remote.sourcePath,
-    };
-  }
   withoutPersist(() => {
     source.replaceAllServices(snapServices);
     if (remote.settings && typeof remote.settings === "object") {
