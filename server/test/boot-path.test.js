@@ -18,6 +18,8 @@ import { getHealthPayload } from "../src/health.js";
 import { seedDatabase } from "../src/db/seed.js";
 import { listServices, updateService } from "../src/models/Service.js";
 
+process.env.ALLOW_FACTORY_SEED = "1";
+
 function tempDir(label) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `gs-boot-${label}-`));
 }
@@ -35,11 +37,11 @@ function youtubeName() {
   return listServices().find((row) => row.id === "youtube-premium")?.nameEn;
 }
 
-function withDataDir(localDir, fn) {
+async function withDataDir(localDir, fn) {
   const prev = process.env.DATA_DIR;
   process.env.DATA_DIR = localDir;
   try {
-    return fn();
+    return await fn();
   } finally {
     if (prev === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = prev;
@@ -64,14 +66,14 @@ afterEach(() => {
 });
 
 describe("production boot path (GoDaddy recycle)", () => {
-  it("wiped primary + custom snapshot only on secondary restores names and does not factory-seed", () => {
+  it("wiped primary + custom snapshot only on secondary restores names and does not factory-seed", async () => {
     const localDir = tempDir("local");
     const rootDir = tempDir("root");
     const homeDir = tempDir("home");
 
-    withDataDir(localDir, () => {
+    await withDataDir(localDir, async () => {
       bootPrimary(localDir, [rootDir, homeDir]);
-      const first = seedDatabase();
+      const first = await seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(first.seedReason, "first-boot");
       updateService("youtube-premium", {
@@ -81,6 +83,7 @@ describe("production boot path (GoDaddy recycle)", () => {
       updateService("canva-pro", { nameEn: "Canva Pro" });
 
       assert.equal(fs.existsSync(path.join(rootDir, "admin-state.json")), true);
+      assert.equal(fs.existsSync(path.join(rootDir, "admin-state.backup.json")), true);
       assert.equal(fs.existsSync(path.join(homeDir, "admin-state.json")), true);
       assert.equal(readSnapshot(rootDir).services.find((s) => s.id === "youtube-premium").nameEn, "YouTube Premium");
 
@@ -90,7 +93,7 @@ describe("production boot path (GoDaddy recycle)", () => {
       assert.equal(fs.existsSync(path.join(rootDir, "admin-state.json")), true);
 
       bootPrimary(localDir, [rootDir, homeDir]);
-      const afterWipe = seedDatabase();
+      const afterWipe = await seedDatabase();
       assert.equal(afterWipe.catalogSeededThisBoot, false);
       assert.notEqual(afterWipe.seedReason, "first-boot");
       assert.equal(youtubeName(), "YouTube Premium");
@@ -116,13 +119,13 @@ describe("production boot path (GoDaddy recycle)", () => {
     fs.rmSync(homeDir, { recursive: true, force: true });
   });
 
-  it("factory seed persist cannot overwrite a non-default snapshot on any write path", () => {
+  it("factory seed persist cannot overwrite a non-default snapshot on any write path", async () => {
     const localDir = tempDir("local");
     const rootDir = tempDir("root");
 
-    withDataDir(localDir, () => {
+    await withDataDir(localDir, async () => {
       bootPrimary(localDir, [rootDir]);
-      seedDatabase();
+      await seedDatabase();
       updateService("youtube-premium", { nameEn: "YouTube Premium" });
       const before = readSnapshot(rootDir);
       assert.equal(before.services.find((s) => s.id === "youtube-premium").nameEn, "YouTube Premium");
@@ -139,7 +142,7 @@ describe("production boot path (GoDaddy recycle)", () => {
       closeDatabase();
       wipeDir(localDir);
       bootPrimary(localDir, [rootDir]);
-      const seeded = seedDatabase();
+      const seeded = await seedDatabase();
       assert.equal(seeded.catalogSeededThisBoot, false);
       assert.equal(youtubeName(), "YouTube Premium");
       assert.equal(catalogMatchesDefaults(readSnapshot(rootDir).services), false);
@@ -153,14 +156,14 @@ describe("production boot path (GoDaddy recycle)", () => {
     fs.rmSync(rootDir, { recursive: true, force: true });
   });
 
-  it("true first boot seeds once; the next boot with the same dirs does not reseed", () => {
+  it("true first boot seeds once; the next boot with the same dirs does not reseed", async () => {
     const localDir = tempDir("local");
     const rootDir = tempDir("root");
     const homeDir = tempDir("home");
 
-    withDataDir(localDir, () => {
+    await withDataDir(localDir, async () => {
       bootPrimary(localDir, [rootDir, homeDir]);
-      const first = seedDatabase();
+      const first = await seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(first.seedReason, "first-boot");
       assert.equal(listServices().length, DEFAULT_SERVICES.length);
@@ -171,7 +174,7 @@ describe("production boot path (GoDaddy recycle)", () => {
 
       closeDatabase();
       bootPrimary(localDir, [rootDir, homeDir]);
-      const second = seedDatabase();
+      const second = await seedDatabase();
       assert.equal(second.catalogSeededThisBoot, false);
       assert.equal(second.servicesSeeded, false);
       assert.notEqual(second.seedReason, "first-boot");

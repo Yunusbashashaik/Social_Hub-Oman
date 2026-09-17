@@ -9,7 +9,7 @@ import {
 } from "../../shared/offers.js";
 
 describe("optional limited-time offers", () => {
-  it("treats missing offer type as none", () => {
+  it("treats missing offer type as none", async () => {
     assert.equal(normalizeOfferType(undefined), "none");
     assert.equal(isActiveOffer({ offerType: "none" }), false);
     assert.equal(isExpiredOffer({ offerType: "none" }), false);
@@ -17,7 +17,7 @@ describe("optional limited-time offers", () => {
     assert.equal(kept.length, 1);
   });
 
-  it("exposes countdown fields for an active offer", () => {
+  it("exposes countdown fields for an active offer", async () => {
     const service = {
       id: "flash",
       offerType: "eid",
@@ -31,7 +31,7 @@ describe("optional limited-time offers", () => {
     assert.match(countdown.label, /0d 00:01:30/);
   });
 
-  it("hides expired offers from the public list", () => {
+  it("hides expired offers from the public list", async () => {
     const expired = {
       id: "gone",
       offerType: "special",

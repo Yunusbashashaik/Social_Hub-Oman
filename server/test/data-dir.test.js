@@ -10,18 +10,18 @@ import {
 } from "../src/db/connection.js";
 
 describe("durable data directory", () => {
-  it("keeps live data under /root when the app itself is installed at /root", () => {
+  it("keeps live data under /root when the app itself is installed at /root", async () => {
     assert.equal(defaultDurableDataDir("/root", "/root"), ROOT_HOST_DATA_DIR);
   });
 
-  it("uses a sibling folder when the app is a child of /root", () => {
+  it("uses a sibling folder when the app is a child of /root", async () => {
     assert.equal(
       defaultDurableDataDir("/root/Social_Hub-Oman", "/root"),
       "/root/socialhub-oman-data",
     );
   });
 
-  it("does not store live data under /app for GoDaddy Published App", () => {
+  it("does not store live data under /app for GoDaddy Published App", async () => {
     assert.equal(defaultDurableDataDir("/app", "/app"), ROOT_HOST_DATA_DIR);
     assert.equal(isInsideAppTree("/app/socialhub-oman-data", "/app"), true);
     assert.equal(
@@ -31,7 +31,7 @@ describe("durable data directory", () => {
     assert.ok(durableDataDirCandidates("/app", "/app").includes(ROOT_HOST_DATA_DIR));
   });
 
-  it("lists /local as a replica but prefers /root as the empty default", () => {
+  it("lists /local as a replica but prefers /root as the empty default", async () => {
     assert.equal(defaultDurableDataDir("/local/app", "/home/node"), ROOT_HOST_DATA_DIR);
     const candidates = durableDataDirCandidates("/local/app", "/home/node");
     assert.equal(candidates[0], ROOT_HOST_DATA_DIR);
@@ -40,7 +40,7 @@ describe("durable data directory", () => {
     assert.ok(candidates.includes("/local/socialhub-oman-data"));
   });
 
-  it("selects an existing catalog over the first empty writable path", () => {
+  it("selects an existing catalog over the first empty writable path", async () => {
     const local = "/local/socialhub-oman-data";
     const root = "/root/socialhub-oman-data";
     const chosen = selectDataDirFromCandidates([local, root], {

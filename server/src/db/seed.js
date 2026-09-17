@@ -1,11 +1,12 @@
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
+import { isFactorySeedAllowed } from "../config/factorySeed.js";
 import {
   bindPersist,
   catalogInitializedOnReplicas,
   hasAnyAdminSnapshot,
+  hydrateOffHostIfEmpty,
   hydratePersistedAdminState,
   persistAdminState,
-  readAdminSnapshot,
   readBestCustomSnapshot,
   withoutPersist,
 } from "./persist.js";
@@ -42,6 +43,7 @@ let lastSeedResult = {
   settingsSeeded: false,
   catalogSeededThisBoot: false,
   hydrated: { restored: false },
+  offHost: { restored: false },
   catalogReset: false,
   seedReason: "not-run",
 };
@@ -60,7 +62,7 @@ function catalogWasInitialized() {
 
 function restoreReplicaIfEmpty() {
   if (countServices() > 0) return false;
-  const chosen = readBestCustomSnapshot() || readAdminSnapshot();
+  const chosen = readBestCustomSnapshot();
   const services = Array.isArray(chosen?.services) ? chosen.services : [];
   if (!chosen || services.length === 0) return false;
   withoutPersist(() => {
@@ -74,9 +76,8 @@ function restoreReplicaIfEmpty() {
 }
 
 /**
- * Insert DEFAULT_SERVICES only on a true first boot: empty store, no
- * catalogSeeded flag, and no admin snapshot on any replica path.
- * Never factory-fills after the catalog has been initialized.
+ * Insert DEFAULT_SERVICES only when ALLOW_FACTORY_SEED=1 (dev). Production
+ * never factory-fills: empty after restore attempts stays empty.
  */
 function seedDefaultCatalogIfEmpty() {
   if (countServices() > 0) {
@@ -90,6 +91,10 @@ function seedDefaultCatalogIfEmpty() {
 
   if (catalogWasInitialized()) {
     return { seeded: false, reason: "previously-seeded-leave-empty" };
+  }
+
+  if (!isFactorySeedAllowed()) {
+    return { seeded: false, reason: "empty-no-factory-fill" };
   }
 
   withoutPersist(() => {
@@ -129,16 +134,23 @@ function applyDefaultServicePhotos() {
   return updated;
 }
 
-export function seedDatabase() {
+export async function seedDatabase() {
   const settingsSeeded = withoutPersist(() => seedSettingsIfEmpty());
   const hydrated = hydratePersistedAdminState();
+  let offHost = { restored: false, reason: "not-needed" };
+  if (countServices() === 0) {
+    offHost = await hydrateOffHostIfEmpty();
+  }
   const seed = seedDefaultCatalogIfEmpty();
   applyDefaultServicePhotos();
 
   const liveCount = countServices();
   let persistResult = null;
   if (seed.seeded) {
-    persistResult = persistAdminState({ protectCustom: true });
+    persistResult = persistAdminState({
+      protectCustom: true,
+      allowFactory: isFactorySeedAllowed(),
+    });
   } else if (liveCount > 0) {
     persistResult = persistAdminState();
   }
@@ -148,6 +160,7 @@ export function seedDatabase() {
     settingsSeeded,
     catalogSeededThisBoot: seed.seeded,
     hydrated,
+    offHost,
     catalogReset: false,
     seedReason: seed.reason,
     persistWrote: persistResult?.wrote ?? 0,

@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "ALLOW_FACTORY_SEED=1 node --watch src/index.js",
     "start": "node src/index.js",
     "lint": "eslint src",
-    "test": "node --test test/*.test.js"
+    "test": "node --test --test-concurrency=1 test/*.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

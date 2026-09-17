@@ -257,6 +257,28 @@ export async function adminDeleteService(token, id) {
   await requestJson(`/api/admin/services/${id}`, { method: "DELETE", token });
 }
 
+export async function adminExportCatalog(token) {
+  const res = await fetch(apiUrl("/api/admin/catalog-export"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Export failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+export async function adminImportCatalog(token, snapshot) {
+  const data = await requestJson("/api/admin/catalog-import", {
+    method: "POST",
+    token,
+    body: snapshot,
+  });
+  notifyServicesUpdated();
+  window.dispatchEvent(new Event("gs:settings-updated"));
+  return data;
+}
+
 export function notifyServicesUpdated(services) {
   if (Array.isArray(services)) rememberLiveServices(services);
   window.dispatchEvent(

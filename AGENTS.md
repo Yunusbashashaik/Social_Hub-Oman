@@ -23,7 +23,7 @@ Vite proxies `/api` to port **3001** during development. For production-style se
 
 ### Dynamic database
 
-Catalog, site settings (complaint email, WhatsApp numbers, About Us, social links), and complaints persist in **SQLite** in a durable folder **outside the deploy tree** (`DATA_DIR`, default `/root/socialhub-oman-data` or another writable host path — never `/app/socialhub-oman-data` on GoDaddy Published App). Uploaded service images live under that folder's `uploads/services/` and are served from `/api/uploads/...`. Public pages load live data via `GET /api/services` and `GET /api/settings`. `GET /api/health` reports `dataDir`, `storePath`, `snapshotSavedAt`, `catalogSeededThisBoot`, and `catalogSeeded`.
+Catalog, site settings (complaint email, WhatsApp numbers, About Us, social links), and complaints persist in **SQLite** in a durable folder **outside the deploy tree** (`DATA_DIR`, default `/root/socialhub-oman-data` or another writable host path — never `/app/socialhub-oman-data` on GoDaddy Published App). Uploaded service images live under that folder's `uploads/services/` and are served from `/api/uploads/...`. Public pages load live data via `GET /api/services` and `GET /api/settings`. `GET /api/health` reports `dataDir`, `storePath`, `snapshotSavedAt`, `catalogSeededThisBoot`, `factorySeedDisabled`, `offHostBackupConfigured`, `offHostBackupRestoredThisBoot`, and `offHostBackupSavedAt`. Production never inserts `DEFAULT_SERVICES` unless `ALLOW_FACTORY_SEED=1`. Every persist writes `admin-state.json` + `admin-state.backup.json` and pushes GitHub Contents `catalog-backup/admin-state.json` when a token is configured. Empty boot auto-fetches that backup before any seed.
 
 ### Complaint email
 
@@ -31,7 +31,7 @@ Local dev works without SMTP: submissions are stored in SQLite (and appended to 
 
 ### Admin panel
 
-Click the header Admin icon to open a **modal** (no separate `/admin` page). After login, the dashboard offers **Add Services** and **Edit Services** (Services, Complaint Email, Contact Details, About Us). Configure `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and optionally `ADMIN_SESSION_SECRET`. Session token is stored in `localStorage` key `globalstores_admin_token`.
+Click the header Admin icon to open a **modal** (no separate `/admin` page). After login, the dashboard offers **Add Services**, **Edit Services** (Services, Complaint Email, Contact Details, About Us), **Export catalog**, and **Import catalog**. Configure `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and optionally `ADMIN_SESSION_SECRET`. Session token is stored in `localStorage` key `globalstores_admin_token`.
 
 **GoDaddy:** Admin requires the Node process (`npm run build && npm start`). Static FTP uploads cannot serve `/api/admin/login` and will show “Load failed”. Verify `GET /api/health` on the live domain. If the API is on another host, set `apiUrl` in `client/public/runtime-config.js`.
 
@@ -44,4 +44,4 @@ Click the header Admin icon to open a **modal** (no separate `/admin` page). Aft
 
 ### GoDaddy persistence
 
-Live catalog must survive **Restart Published App**. `GET /api/health` on socialhubomr.com must not use `dataDir` `/app/socialhub-oman-data`. After an admin save, `snapshotSavedAt` must advance. Defaults seed only when the durable store has never been initialized (`catalogSeededThisBoot` true only on that first boot).
+Live catalog auto-restores from replica snapshots and the off-host GitHub backup after an empty boot. `GET /api/health` on socialhubomr.com must not use `dataDir` `/app/socialhub-oman-data`. After an admin save, `snapshotSavedAt` and `offHostBackupSavedAt` must advance. `catalogSeededThisBoot` must stay `false` in production (`ALLOW_FACTORY_SEED` unset). `factorySeedDisabled` must be `true`.

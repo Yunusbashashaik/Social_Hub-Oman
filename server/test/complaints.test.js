@@ -9,6 +9,8 @@ import { closeDatabase, initDatabase } from "../src/db/connection.js";
 import { seedDatabase } from "../src/db/seed.js";
 import { complaintRouter } from "../src/routes/complaints.js";
 
+process.env.ALLOW_FACTORY_SEED = "1";
+
 const PNG = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
   "hex",
@@ -19,9 +21,9 @@ const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-complaints-"));
 describe("complaints API", () => {
   let app;
 
-  before(() => {
+  before(async () => {
     initDatabase(path.join(testDir, "test.db"));
-    seedDatabase();
+    await seedDatabase();
     app = express();
     app.use("/api/complaints", complaintRouter);
   });

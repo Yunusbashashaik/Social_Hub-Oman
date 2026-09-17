@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { buildComplaintEmailContent } from "../src/services/mail.js";
 
 describe("complaint email content", () => {
-  it("embeds an inline screenshot image in the HTML body", () => {
+  it("embeds an inline screenshot image in the HTML body", async () => {
     const { text, html } = buildComplaintEmailContent({
       id: "GS-1",
       fullName: "Ada <Test>",

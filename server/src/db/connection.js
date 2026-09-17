@@ -5,6 +5,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JsonDatabase } from "./jsonDb.js";
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
+import { isFactorySeedAllowed } from "../config/factorySeed.js";
+import { resetOffHostBackupStatus } from "./offHostBackup.js";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +33,7 @@ const STORE_NAMES = [
   "globalstore.db",
   "globalstore.json",
   "admin-state.json",
+  "admin-state.backup.json",
   "globalstore.db-wal",
 ];
 
@@ -233,15 +236,32 @@ export function storeArtifactsPresent(dir) {
   return STORE_NAMES.some((name) => fs.existsSync(path.join(dir, name)));
 }
 
-function peekSnapshotServices(dir) {
+function peekSnapshotFile(dir, name) {
   try {
-    const parsed = JSON.parse(
-      fs.readFileSync(path.join(dir, "admin-state.json"), "utf8"),
-    );
+    const parsed = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
     return Array.isArray(parsed?.services) ? parsed.services : null;
   } catch {
     return null;
   }
+}
+
+function peekSnapshotServices(dir) {
+  const primary = peekSnapshotFile(dir, "admin-state.json");
+  const backup = peekSnapshotFile(dir, "admin-state.backup.json");
+  const factorySig = DEFAULT_SERVICES.map(
+    (row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`,
+  )
+    .sort()
+    .join("\n");
+  const score = (services) => {
+    if (!services || services.length === 0) return 0;
+    const signature = services
+      .map((row) => `${row.id}|${row.nameEn}|${row.nameAr}|${row.prices?.month}|${row.prices?.year}`)
+      .sort()
+      .join("\n");
+    return signature === factorySig ? 1 : 2;
+  };
+  return score(primary) >= score(backup) ? primary : backup;
 }
 
 function donorScore(dir) {
@@ -257,7 +277,8 @@ function donorScore(dir) {
   )
     .sort()
     .join("\n");
-  return signature === factory ? 2 : 3;
+  if (signature === factory) return isFactorySeedAllowed() ? 2 : 0;
+  return 3;
 }
 
 function findDonorDataDir(targetDir) {
@@ -507,6 +528,7 @@ export function closeDatabase() {
     donorDir: null,
     donorCopied: false,
   };
+  resetOffHostBackupStatus();
 }
 
 export { activeDbPath };

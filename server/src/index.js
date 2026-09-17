@@ -17,17 +17,17 @@ const HOST = process.env.HOST || "0.0.0.0";
 // Production boot (app.js → index.js):
 // 1) initDatabase: resolveDataDir (DATA_DIR env or /root then $HOME then /local),
 //    copy a surviving replica if the primary dir is empty, open SQLite/JSON.
-// 2) seed.js bindPersist (module load) then seedDatabase: hydrate the best
-//    custom snapshot, factory-seed only on true first boot, persistAdminState
-//    to every replica path without clobbering a custom admin-state.json.
+// 2) seed.js: hydrate local replicas, auto-fetch off-host backup if empty,
+//    factory-seed only when ALLOW_FACTORY_SEED=1, persist admin-state.json
+//    + admin-state.backup.json to every replica without clobbering custom.
 initDatabase();
-seedDatabase();
+await seedDatabase();
 console.log(`Admin data directory: ${getDataDir()}`);
 
 const app = express();
 app.set("trust proxy", 1);
 app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/api/health", (_req, res) => {

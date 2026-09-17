@@ -27,6 +27,8 @@ import {
 } from "../src/models/Service.js";
 import { getAllSettings, getSetting, updateSettings } from "../src/models/Settings.js";
 
+process.env.ALLOW_FACTORY_SEED = "1";
+
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "gs-persist-"));
 }
@@ -40,13 +42,15 @@ afterEach(() => {
 });
 
 describe("admin catalog persistence", () => {
-  it("seeds the default catalog once and keeps admin edits after a second seedDatabase()", () => {
+  it("seeds the default catalog once and keeps admin edits after a second seedDatabase()", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    const firstSeed = seedDatabase();
+    const firstSeed = await seedDatabase();
     assert.equal(firstSeed.servicesSeeded, true);
     assert.equal(listServices().length, DEFAULT_SERVICES.length);
+    assert.equal(fs.existsSync(path.join(dir, "admin-state.json")), true);
+    assert.equal(fs.existsSync(path.join(dir, "admin-state.backup.json")), true);
     assert.equal(getSetting("catalogSeeded"), true);
     assert.equal(
       listServices().find((s) => s.id === "spotify-premium").imageUrl,
@@ -76,7 +80,7 @@ describe("admin catalog persistence", () => {
 
     closeDatabase();
     initDatabase(dbPath);
-    const afterRestart = seedDatabase();
+    const afterRestart = await seedDatabase();
     assert.equal(afterRestart.servicesSeeded, false);
     assert.equal(afterRestart.catalogReset, false);
     assert.equal(listServices().length, DEFAULT_SERVICES.length + 1);
@@ -96,18 +100,18 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("does not re-insert defaults after admin deletes a seeded service", () => {
+  it("does not re-insert defaults after admin deletes a seeded service", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    seedDatabase();
+    await seedDatabase();
     const victim = DEFAULT_SERVICES[1].id;
     assert.equal(deleteService(victim), true);
     const remaining = listServices().length;
 
     closeDatabase();
     initDatabase(dbPath);
-    const again = seedDatabase();
+    const again = await seedDatabase();
     assert.equal(again.servicesSeeded, false);
     assert.equal(listServices().length, remaining);
     assert.equal(
@@ -119,11 +123,11 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("restores catalog services from snapshot when the database file is replaced", () => {
+  it("restores catalog services from snapshot when the database file is replaced", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    seedDatabase();
+    await seedDatabase();
 
     insertService({
       id: "admin-added-stream",
@@ -145,7 +149,7 @@ describe("admin catalog persistence", () => {
     assert.ok(snap.services.some((s) => s.id === "admin-added-stream"));
 
     initDatabase(dbPath);
-    const seeded = seedDatabase();
+    const seeded = await seedDatabase();
     assert.equal(seeded.hydrated.restoredServices, true);
     assert.equal(listServices().length, expectedCount);
     assert.ok(listServices().some((s) => s.id === "admin-added-stream"));
@@ -157,11 +161,11 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("never overwrites an existing DB catalog with leftover snapshot services", () => {
+  it("never overwrites an existing DB catalog with leftover snapshot services", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    seedDatabase();
+    await seedDatabase();
     updateService(DEFAULT_SERVICES[0].id, { prices: { month: 77, year: 770 } });
 
     fs.writeFileSync(
@@ -184,7 +188,7 @@ describe("admin catalog persistence", () => {
       })}\n`,
     );
 
-    const again = seedDatabase();
+    const again = await seedDatabase();
     assert.equal(again.hydrated.restoredServices, false);
     assert.equal(
       listServices().some((s) => s.id === "legacy-factory-item"),
@@ -196,14 +200,14 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("keeps admin renames after ephemeral in-app data is wiped when durable DATA_DIR remains", () => {
+  it("keeps admin renames after ephemeral in-app data is wiped when durable DATA_DIR remains", async () => {
     const ephemeralAppData = tempDir();
     const durable = tempDir();
     const prevDataDir = process.env.DATA_DIR;
     process.env.DATA_DIR = durable;
     try {
       initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData, hostDurableScan: false });
-      const first = seedDatabase();
+      const first = await seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(getDataDir(), path.resolve(durable));
 
@@ -223,7 +227,7 @@ describe("admin catalog persistence", () => {
       assert.equal(fs.existsSync(path.join(durable, "globalstore.db")), true);
 
       initDatabase(undefined, { skipMigrate: true, legacyDataDir: ephemeralAppData, hostDurableScan: false });
-      const afterRestart = seedDatabase();
+      const afterRestart = await seedDatabase();
       assert.equal(afterRestart.catalogSeededThisBoot, false);
       assert.equal(afterRestart.servicesSeeded, false);
       assert.equal(
@@ -250,13 +254,13 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("seeds defaults only once on an empty durable store", () => {
+  it("seeds defaults only once on an empty durable store", async () => {
     const durable = tempDir();
     const prevDataDir = process.env.DATA_DIR;
     process.env.DATA_DIR = durable;
     try {
       initDatabase(undefined, { skipMigrate: true, hostDurableScan: false });
-      const first = seedDatabase();
+      const first = await seedDatabase();
       assert.equal(first.catalogSeededThisBoot, true);
       assert.equal(listServices().length, DEFAULT_SERVICES.length);
       const youtubeDefault = listServices().find((s) => s.id === "youtube-premium");
@@ -264,7 +268,7 @@ describe("admin catalog persistence", () => {
 
       closeDatabase();
       initDatabase(undefined, { skipMigrate: true, hostDurableScan: false });
-      const second = seedDatabase();
+      const second = await seedDatabase();
       assert.equal(second.catalogSeededThisBoot, false);
       assert.equal(second.servicesSeeded, false);
       assert.equal(listServices().length, DEFAULT_SERVICES.length);
@@ -284,19 +288,19 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("copies a legacy in-app store into an empty durable directory once", () => {
+  it("copies a legacy in-app store into an empty durable directory once", async () => {
     const legacy = tempDir();
     const durable = tempDir();
     try {
       initDatabase(path.join(legacy, "globalstore.db"));
-      seedDatabase();
+      await seedDatabase();
       updateService("youtube-premium", { nameEn: "YouTube Premium" });
       closeDatabase();
 
       initDatabase(undefined, { dataDir: durable, legacyDataDir: legacy });
       const migrated = getLastMigration();
       assert.equal(migrated.migrated, true);
-      seedDatabase();
+      await seedDatabase();
       assert.equal(
         listServices().find((s) => s.id === "youtube-premium").nameEn,
         "YouTube Premium",
@@ -309,11 +313,11 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("restores a durable snapshot over a re-seeded default catalog", () => {
+  it("restores a durable snapshot over a re-seeded default catalog", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    seedDatabase();
+    await seedDatabase();
     updateService("youtube-premium", { nameEn: "YouTube Premium" });
     updateService("canva-pro", { nameEn: "Canva Pro" });
 
@@ -324,7 +328,7 @@ describe("admin catalog persistence", () => {
       ),
     );
 
-    const restored = seedDatabase();
+    const restored = await seedDatabase();
     assert.equal(restored.hydrated.restoredServices, true);
     assert.equal(
       listServices().find((s) => s.id === "youtube-premium").nameEn,
@@ -336,7 +340,7 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("hydrates a custom replica after /local is wiped and does not factory-seed", () => {
+  it("hydrates a custom replica after /local is wiped and does not factory-seed", async () => {
     const localDir = tempDir();
     const rootDir = tempDir();
     const prevDataDir = process.env.DATA_DIR;
@@ -347,7 +351,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      seedDatabase();
+      await seedDatabase();
       updateService("youtube-premium", { nameEn: "YouTube Premium" });
       updateService("canva-pro", { nameEn: "Canva Pro" });
       assert.equal(fs.existsSync(path.join(rootDir, "admin-state.json")), true);
@@ -361,7 +365,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      const afterWipe = seedDatabase();
+      const afterWipe = await seedDatabase();
       assert.equal(afterWipe.catalogSeededThisBoot, false);
       assert.equal(afterWipe.hydrated.restoredServices, true);
       assert.equal(afterWipe.hydrated.hadCustomSnapshot, true);
@@ -388,7 +392,7 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("never overwrites a custom replica with a factory-seed persist", () => {
+  it("never overwrites a custom replica with a factory-seed persist", async () => {
     const localDir = tempDir();
     const rootDir = tempDir();
     const prevDataDir = process.env.DATA_DIR;
@@ -399,7 +403,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      seedDatabase();
+      await seedDatabase();
       updateService("youtube-premium", { nameEn: "YouTube Premium" });
       const customBefore = JSON.parse(
         fs.readFileSync(path.join(rootDir, "admin-state.json"), "utf8"),
@@ -424,13 +428,13 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("prefers an older custom snapshot over a newer factory snapshot", () => {
+  it("prefers an older custom snapshot over a newer factory snapshot", async () => {
     const customDir = tempDir();
     const factoryDir = tempDir();
     const dbPath = path.join(factoryDir, "store.db");
 
     initDatabase(path.join(customDir, "store.db"));
-    seedDatabase();
+    await seedDatabase();
     updateService("youtube-premium", { nameEn: "YouTube Premium" });
     const custom = JSON.parse(fs.readFileSync(path.join(customDir, "admin-state.json"), "utf8"));
     custom.savedAt = "2026-01-01T00:00:00.000Z";
@@ -456,7 +460,7 @@ describe("admin catalog persistence", () => {
       extraDataDirs: [customDir],
       hostDurableScan: false,
     });
-    const result = seedDatabase();
+    const result = await seedDatabase();
     assert.equal(result.hydrated.hadCustomSnapshot, true);
     assert.equal(result.catalogSeededThisBoot, false);
     assert.equal(
@@ -469,11 +473,11 @@ describe("admin catalog persistence", () => {
     fs.rmSync(factoryDir, { recursive: true, force: true });
   });
 
-  it("restores a smaller custom catalog over factory defaults", () => {
+  it("restores a smaller custom catalog over factory defaults", async () => {
     const dir = tempDir();
     const dbPath = path.join(dir, "store.db");
     initDatabase(dbPath);
-    seedDatabase();
+    await seedDatabase();
     const victim = DEFAULT_SERVICES[1].id;
     assert.equal(deleteService(victim), true);
     const remaining = listServices().length;
@@ -481,7 +485,7 @@ describe("admin catalog persistence", () => {
 
     withoutPersist(() => replaceAllServices(DEFAULT_SERVICES));
     fs.writeFileSync(path.join(dir, "admin-state.json"), `${JSON.stringify(custom)}\n`);
-    const restored = seedDatabase();
+    const restored = await seedDatabase();
     assert.equal(restored.hydrated.restoredServices, true);
     assert.equal(listServices().length, remaining);
     assert.equal(
@@ -493,7 +497,7 @@ describe("admin catalog persistence", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("restores replica offers without factory-seeding after a primary wipe", () => {
+  it("restores replica offers without factory-seeding after a primary wipe", async () => {
     const localDir = tempDir();
     const rootDir = tempDir();
     const prevDataDir = process.env.DATA_DIR;
@@ -505,7 +509,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      seedDatabase();
+      await seedDatabase();
       updateService("youtube-premium", {
         nameEn: "YouTube Premium",
         offerType: "special",
@@ -521,7 +525,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      const afterWipe = seedDatabase();
+      const afterWipe = await seedDatabase();
       assert.equal(afterWipe.catalogSeededThisBoot, false);
       assert.notEqual(afterWipe.seedReason, "first-boot");
       const youtube = listServices().find((s) => s.id === "youtube-premium");
@@ -537,7 +541,7 @@ describe("admin catalog persistence", () => {
     }
   });
 
-  it("leaves an empty catalog empty after prior seed and does not persist factory defaults", () => {
+  it("leaves an empty catalog empty after prior seed and does not persist factory defaults", async () => {
     const localDir = tempDir();
     const rootDir = tempDir();
     const prevDataDir = process.env.DATA_DIR;
@@ -560,7 +564,7 @@ describe("admin catalog persistence", () => {
         extraDataDirs: [rootDir],
         hostDurableScan: false,
       });
-      const again = seedDatabase();
+      const again = await seedDatabase();
       assert.equal(again.catalogSeededThisBoot, false);
       assert.equal(again.seedReason, "previously-seeded-leave-empty");
       assert.equal(listServices().length, 0);

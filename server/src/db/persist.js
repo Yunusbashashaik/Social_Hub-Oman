@@ -12,8 +12,16 @@ import {
 } from "./connection.js";
 import { DEFAULT_SERVICES } from "../config/defaultServices.js";
 import { DEFAULT_SETTINGS } from "../config/defaults.js";
+import { isFactorySeedAllowed } from "../config/factorySeed.js";
+import {
+  getOffHostBackupStatus,
+  markOffHostRestored,
+  pullOffHostBackup,
+  scheduleOffHostBackup,
+} from "./offHostBackup.js";
 
-const SNAPSHOT_NAME = "admin-state.json";
+export const SNAPSHOT_NAME = "admin-state.json";
+export const SNAPSHOT_BACKUP_NAME = "admin-state.backup.json";
 /** Snapshot format version. Never used to wipe or replace a live catalog. */
 export const CATALOG_GENERATION = 4;
 
@@ -45,11 +53,19 @@ export function withoutPersist(fn) {
   }
 }
 
+function snapshotFilesFor(dir) {
+  const resolved = path.resolve(dir);
+  return [
+    path.join(resolved, SNAPSHOT_NAME),
+    path.join(resolved, SNAPSHOT_BACKUP_NAME),
+  ];
+}
+
 function snapshotPathFor(dir) {
   return path.join(path.resolve(dir), SNAPSHOT_NAME);
 }
 
-export function getSnapshotWritePaths() {
+export function getSnapshotWriteDirs() {
   const dirs = new Set();
   const storePath = getActiveStorePath();
   if (storePath) dirs.add(path.dirname(path.resolve(storePath)));
@@ -57,20 +73,24 @@ export function getSnapshotWritePaths() {
     if (isInsideAppTree(dir, APP_ROOT) && path.resolve(dir) === path.resolve(LEGACY_APP_DATA_DIR)) {
       continue;
     }
-    dirs.add(dir);
+    dirs.add(path.resolve(dir));
   }
   dirs.add(path.resolve(getDataDir()));
   if (process.env.DATA_DIR) dirs.add(path.resolve(process.env.DATA_DIR));
-  return [...dirs].map(snapshotPathFor);
+  return [...dirs];
+}
+
+export function getSnapshotWritePaths() {
+  return getSnapshotWriteDirs().flatMap(snapshotFilesFor);
 }
 
 export function getSnapshotPaths() {
-  const paths = new Set(getSnapshotWritePaths());
+  const dirs = new Set(getSnapshotWriteDirs());
   for (const dir of getCatalogSearchDirs()) {
-    paths.add(snapshotPathFor(dir));
+    dirs.add(path.resolve(dir));
   }
-  paths.add(snapshotPathFor(LEGACY_APP_DATA_DIR));
-  return [...paths];
+  dirs.add(path.resolve(LEGACY_APP_DATA_DIR));
+  return [...dirs].flatMap(snapshotFilesFor);
 }
 
 function atomicWrite(filePath, data) {
@@ -110,15 +130,33 @@ function serializeServices() {
   });
 }
 
-export function writeAdminSnapshot(state, options = {}) {
-  if (!state) return null;
-  const payload = {
+function bestExistingInDir(dir) {
+  let best = null;
+  for (const filePath of snapshotFilesFor(dir)) {
+    best = compareSnapshots(best, readSnapshotFile(filePath));
+  }
+  return best;
+}
+
+export function buildAdminStatePayload(state = {}) {
+  return {
     version: 1,
     generation: CATALOG_GENERATION,
-    savedAt: new Date().toISOString(),
-    services: Array.isArray(state.services) ? state.services : [],
-    settings: state.settings && typeof state.settings === "object" ? state.settings : {},
+    savedAt: state.savedAt || new Date().toISOString(),
+    services: Array.isArray(state.services) ? state.services : serializeServices(),
+    settings:
+      state.settings && typeof state.settings === "object"
+        ? state.settings
+        : {
+            ...(source?.getAllSettings?.() || {}),
+            catalogSeeded: source?.getSetting?.("catalogSeeded") === true,
+          },
   };
+}
+
+export function writeAdminSnapshot(state, options = {}) {
+  if (!state) return null;
+  const payload = buildAdminStatePayload(state);
   const incomingIsFactory = catalogMatchesDefaults(payload.services);
   const incomingIsEmpty = payload.services.length === 0;
   const incomingIsCustom = snapshotIsCustom(payload);
@@ -126,24 +164,38 @@ export function writeAdminSnapshot(state, options = {}) {
   let wrote = 0;
   const skippedCustom = [];
   const attempted = getSnapshotWritePaths();
-  for (const filePath of attempted) {
-    const existing = readSnapshotFile(filePath);
+  for (const dir of getSnapshotWriteDirs()) {
+    const existing = bestExistingInDir(dir);
     const clobberCustom =
       snapshotIsCustom(existing) &&
       (incomingIsFactory || incomingIsEmpty || !incomingIsCustom);
     if (clobberCustom && options.protectCustom !== false) {
-      skippedCustom.push(filePath);
+      skippedCustom.push(...snapshotFilesFor(dir));
       console.error(
         "Refusing to overwrite custom admin snapshot with factory or empty catalog",
-        filePath,
+        dir,
       );
       continue;
     }
-    try {
-      atomicWrite(filePath, body);
-      wrote += 1;
-    } catch (err) {
-      console.error("Failed to write admin snapshot", filePath, err?.message || err);
+    if (
+      incomingIsFactory &&
+      !isFactorySeedAllowed() &&
+      options.allowFactory !== true
+    ) {
+      skippedCustom.push(...snapshotFilesFor(dir));
+      console.error(
+        "Refusing to persist factory catalog while ALLOW_FACTORY_SEED is off",
+        dir,
+      );
+      continue;
+    }
+    for (const filePath of snapshotFilesFor(dir)) {
+      try {
+        atomicWrite(filePath, body);
+        wrote += 1;
+      } catch (err) {
+        console.error("Failed to write admin snapshot", filePath, err?.message || err);
+      }
     }
   }
   lastPersistResult = {
@@ -153,6 +205,13 @@ export function writeAdminSnapshot(state, options = {}) {
     savedAt: payload.savedAt,
     factoryPersistBlocked: incomingIsFactory && skippedCustom.length > 0,
   };
+  if (wrote && options.offHost !== false) {
+    scheduleOffHostBackup(payload, {
+      incomingIsFactory,
+      incomingIsEmpty,
+      incomingIsCustom,
+    });
+  }
   if (!wrote) {
     if (skippedCustom.length) {
       console.error("Admin snapshot was not written; custom replicas were preserved");
@@ -317,7 +376,7 @@ export function hydratePersistedAdminState() {
   const snapshot = readAdminSnapshot();
   const customSnapshot = readBestCustomSnapshot();
   const hadCustomSnapshot = Boolean(customSnapshot);
-  if (!snapshot) {
+  if (!snapshot && !customSnapshot) {
     return {
       restored: false,
       reason: "no-snapshot",
@@ -326,7 +385,17 @@ export function hydratePersistedAdminState() {
     };
   }
 
-  const chosen = customSnapshot || snapshot;
+  const chosen =
+    customSnapshot || (isFactorySeedAllowed() ? snapshot : null);
+  if (!chosen) {
+    return {
+      restored: false,
+      reason: "factory-snapshot-blocked",
+      hadCustomSnapshot: false,
+      sourcePath: snapshot?.sourcePath || null,
+      snapshotIsFactoryDefault: true,
+    };
+  }
   const currentSettings = source.getAllSettings();
   const snapSettings =
     chosen.settings && typeof chosen.settings === "object" ? chosen.settings : null;
@@ -396,13 +465,16 @@ export function hydratePersistedAdminState() {
 export function inspectReplicaDir(dir) {
   const resolved = path.resolve(dir);
   const snapshotPath = snapshotPathFor(resolved);
-  const snapshot = readSnapshotFile(snapshotPath);
+  const backupPath = path.join(resolved, SNAPSHOT_BACKUP_NAME);
+  const snapshot = bestExistingInDir(resolved) || readSnapshotFile(snapshotPath);
   return {
     dir: resolved,
     hasDb: fs.existsSync(path.join(resolved, "globalstore.db")),
     hasJson: fs.existsSync(path.join(resolved, "globalstore.json")),
     hasSnapshot: Boolean(snapshot),
+    hasBackup: fs.existsSync(backupPath),
     snapshotPath,
+    backupPath,
     snapshotSavedAt: snapshot?.savedAt || null,
     snapshotServices: Array.isArray(snapshot?.services) ? snapshot.services.length : 0,
     snapshotCustom: snapshotIsCustom(snapshot),
@@ -431,5 +503,51 @@ export function getPersistStatus() {
     hadCustomSnapshot: Boolean(custom),
     replicas: getReplicaInventory(),
     lastPersist: lastPersistResult,
+    offHost: getOffHostBackupStatus(),
+  };
+}
+
+export async function hydrateOffHostIfEmpty() {
+  if (!source) {
+    return { restored: false, reason: "unbound" };
+  }
+  if (source.countServices() > 0) {
+    return { restored: false, reason: "already-populated" };
+  }
+  const remote = await pullOffHostBackup();
+  if (!remote) {
+    return { restored: false, reason: "no-remote" };
+  }
+  const snapServices = Array.isArray(remote.services) ? remote.services : [];
+  if (!snapServices.length) {
+    return { restored: false, reason: "remote-empty", sourcePath: remote.sourcePath };
+  }
+  if (catalogMatchesDefaults(snapServices) && !isFactorySeedAllowed()) {
+    return {
+      restored: false,
+      reason: "remote-factory-blocked",
+      snapshotIsFactoryDefault: true,
+      sourcePath: remote.sourcePath,
+    };
+  }
+  withoutPersist(() => {
+    source.replaceAllServices(snapServices);
+    if (remote.settings && typeof remote.settings === "object") {
+      source.replaceAllSettings(remote.settings);
+    }
+  });
+  markOffHostRestored(remote);
+  persistAdminState();
+  console.log(
+    `Restored admin catalog from off-host backup (${remote.sourcePath || "remote"}).`,
+  );
+  return {
+    restored: true,
+    restoredServices: true,
+    restoredSettings: Boolean(remote.settings),
+    savedAt: remote.savedAt || null,
+    sourcePath: remote.sourcePath || null,
+    reason: "off-host",
+    snapshotIsFactoryDefault: catalogMatchesDefaults(snapServices),
   };
 }

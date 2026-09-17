@@ -8,15 +8,17 @@ import { seedDatabase } from "../src/db/seed.js";
 import { insertService, listServices } from "../src/models/Service.js";
 import { getAllSettings, updateSettings } from "../src/models/Settings.js";
 
+process.env.ALLOW_FACTORY_SEED = "1";
+
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-json-"));
 
 describe("JSON file database fallback", () => {
-  before(() => {
+  before(async () => {
     initDatabase(path.join(testDir, "unused.db"), {
       engine: "json",
       jsonPath: path.join(testDir, "store.json"),
     });
-    seedDatabase();
+    await seedDatabase();
   });
 
   after(() => {
@@ -24,13 +26,13 @@ describe("JSON file database fallback", () => {
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 
-  it("starts with the hardcoded catalog on the JSON engine", () => {
+  it("starts with the hardcoded catalog on the JSON engine", async () => {
     assert.equal(getDbEngine(), "json");
     assert.equal(listServices().length, 42);
     assert.equal(listServices()[0].id, "netflix-prime-combo");
   });
 
-  it("creates a service and updates settings", () => {
+  it("creates a service and updates settings", async () => {
     const created = insertService({
       id: "json-test-service",
       nameEn: "JSON Service",

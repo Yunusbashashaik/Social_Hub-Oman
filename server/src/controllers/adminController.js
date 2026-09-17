@@ -8,9 +8,11 @@ import {
   deleteService,
   insertService,
   listServices,
+  replaceAllServices,
   updateService,
 } from "../models/Service.js";
-import { getAllSettings, updateSettings } from "../models/Settings.js";
+import { getAllSettings, replaceAllSettings, setSetting, updateSettings } from "../models/Settings.js";
+import { persistAdminState, buildAdminStatePayload } from "../db/persist.js";
 import { SERVICE_UPLOADS_DIR } from "../db/connection.js";
 import { serviceImagePublicUrl } from "../middleware/upload.js";
 import { translateEnglishToArabic } from "../services/translate.js";
@@ -233,3 +235,52 @@ export function putAdminSettings(req, res) {
     res.status(400).json({ error: err.message || "Update failed" });
   }
 }
+
+export function exportAdminCatalog(_req, res) {
+  try {
+    persistAdminState();
+    const payload = buildAdminStatePayload({
+      services: listServices().map((service) => {
+        const rest = { ...service };
+        delete rest.imageSrc;
+        return rest;
+      }),
+      settings: { ...getAllSettings(), catalogSeeded: true },
+    });
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="admin-state.json"',
+    );
+    res.send(`${JSON.stringify(payload, null, 2)}\n`);
+  } catch (err) {
+    console.error("Catalog export failed:", err);
+    res.status(500).json({ error: "Failed to export catalog" });
+  }
+}
+
+export function importAdminCatalog(req, res) {
+  try {
+    const snapshot = req.body || {};
+    const services = Array.isArray(snapshot.services) ? snapshot.services : null;
+    if (!services) {
+      res.status(400).json({ error: "admin-state.json must include a services array" });
+      return;
+    }
+    replaceAllServices(services);
+    if (snapshot.settings && typeof snapshot.settings === "object") {
+      replaceAllSettings(snapshot.settings);
+    }
+    setSetting("catalogSeeded", true);
+    persistAdminState({ protectCustom: false });
+    res.json({
+      ok: true,
+      services: listServices().length,
+      savedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Catalog import failed:", err);
+    res.status(400).json({ error: err.message || "Import failed" });
+  }
+}
+

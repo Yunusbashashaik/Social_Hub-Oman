@@ -11,6 +11,8 @@ import { adminRouter } from "../src/routes/admin.js";
 import { servicesRouter } from "../src/routes/services.js";
 import { settingsRouter } from "../src/routes/settings.js";
 
+process.env.ALLOW_FACTORY_SEED = "1";
+
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-"));
 const jpeg = Buffer.from(
   "ffd8ffe000104a46494600010100000100010000ffdb004300010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc0000b080001000101011100ffc40014100100000000000000000000000000000000ffda00080001000100003f00fbffd9",
@@ -24,9 +26,9 @@ describe("services + admin API", () => {
 
   before(async () => {
     initDatabase(path.join(testDir, "test.db"));
-    seedDatabase();
+    await seedDatabase();
     app = express();
-    app.use(express.json());
+    app.use(express.json({ limit: "25mb" }));
     app.use(express.urlencoded({ extended: true }));
     app.use("/api/services", servicesRouter);
     app.use("/api/settings", settingsRouter);
@@ -310,5 +312,29 @@ describe("services + admin API", () => {
     );
     assert.ok(adminItem);
     assert.equal(adminItem.offerType, "special");
+  });
+
+  it("exports and imports admin-state.json including offers", async () => {
+    const exported = await request(app)
+      .get("/api/admin/catalog-export")
+      .set("Authorization", `Bearer ${token}`);
+    assert.equal(exported.status, 200);
+    const snapshot = JSON.parse(exported.text);
+    assert.ok(Array.isArray(snapshot.services));
+    assert.ok(snapshot.services.some((s) => s.id === streamId));
+    const renamed = {
+      ...snapshot,
+      services: snapshot.services.map((row) =>
+        row.id === streamId ? { ...row, nameEn: "Imported Stream Name" } : row,
+      ),
+    };
+    const imported = await request(app)
+      .post("/api/admin/catalog-import")
+      .set("Authorization", `Bearer ${token}`)
+      .send(renamed);
+    assert.equal(imported.status, 200);
+    const listed = await request(app).get("/api/admin/services").set("Authorization", `Bearer ${token}`);
+    const item = listed.body.services.find((s) => s.id === streamId);
+    assert.equal(item.nameEn, "Imported Stream Name");
   });
 });

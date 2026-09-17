@@ -30,15 +30,22 @@ npm start   # serves built client + API on port 3001
 
 ### Dynamic database (SQLite)
 
-Admin edits and public catalog/settings are stored **outside the GitHub file set** so a new publish or **Restart Published App** does not erase them. The API never uses `/app/socialhub-oman-data` as the live store (that path is wiped with the container). Prefer **`/root/socialhub-oman-data`**, or set `DATA_DIR` to a host folder that is not under the app tree. Factory catalog names/prices seed **once** on a brand-new empty durable store and never overwrite existing admin rows.
+Admin edits and public catalog/settings are stored **outside the GitHub file set**. Every admin persist also writes `admin-state.json` + `admin-state.backup.json` on every replica path **and** pushes the same snapshot off-host (GitHub Contents API). If the host volume is empty at boot, the API **auto-fetches** that backup and hydrates **before** any seed. Production **never** inserts factory catalog names unless `ALLOW_FACTORY_SEED=1` (local/dev only).
 
 Optional env:
 
-- `DATA_DIR` — durable folder for SQLite, `admin-state.json`, and uploads (must survive Restart Published App)
+- `DATA_DIR` — durable folder for SQLite, `admin-state.json`, `admin-state.backup.json`, and uploads
 - `DATABASE_PATH` — custom SQLite file path
 - `ADMIN_USERNAME` (default: `admin`)
 - `ADMIN_PASSWORD` (default: `Ss$135790`)
 - `ADMIN_SESSION_SECRET` — signs admin session tokens
+- **Off-host catalog backup (required on GoDaddy):**
+  - `CATALOG_BACKUP_TOKEN` or `GITHUB_TOKEN` or `GH_TOKEN` — GitHub PAT with Contents read/write on this repo
+  - `CATALOG_BACKUP_REPO` — `owner/repo` (defaults to `GITHUB_REPOSITORY` if set)
+  - `CATALOG_BACKUP_PATH` — default `catalog-backup/admin-state.json`
+  - `CATALOG_BACKUP_BRANCH` — default `main`
+  - `CATALOG_BACKUP_URL` — optional HTTPS JSON URL used to **pull** a backup (raw GitHub URL is fine)
+- `ALLOW_FACTORY_SEED=1` — **dev only**. Production must **not** set this. Without it the API never inserts factory catalog names.
 
 ### Admin panel
 
@@ -82,17 +89,30 @@ If the website and API use different URLs, edit `client/public/runtime-config.js
 window.__GLOBALSTORE_CONFIG__ = { apiUrl: "https://your-node-api-url" };
 ```
 
-Keep **`/root/socialhub-oman-data`** (or the `DATA_DIR` you set) so SQLite and uploads survive GitHub publishes and **Restart Published App**. Do not delete that folder. `GET /api/health` shows `dataDir`, `storePath`, `snapshotSavedAt`, `catalogSeededThisBoot`, and `services` count. `dataDirInsideApp` must be `false`.
+Keep **`/root/socialhub-oman-data`** (or the `DATA_DIR` you set) so SQLite and uploads survive GitHub publishes. Also set **off-host backup** env vars so an empty volume auto-restores the live catalog. `GET /api/health` must show `factorySeedDisabled: true`, `offHostBackupConfigured: true` after a token is set, and `catalogSeededThisBoot: false` on a normal boot. `dataDirInsideApp` must be `false`.
+
+### GoDaddy Application Manager env (socialhubomr.com)
+
+Set these on the Node app (never `ALLOW_FACTORY_SEED`):
+
+```
+DATA_DIR=/root/socialhub-oman-data
+CATALOG_BACKUP_TOKEN=<github PAT with Contents: Read and write>
+CATALOG_BACKUP_REPO=Yunusbashashaik/Social_Hub-Oman
+CATALOG_BACKUP_PATH=catalog-backup/admin-state.json
+CATALOG_BACKUP_BRANCH=main
+CATALOG_BACKUP_URL=https://raw.githubusercontent.com/Yunusbashashaik/Social_Hub-Oman/main/catalog-backup/admin-state.json
+```
+
+Create the PAT under GitHub → Settings → Developer settings → Fine-grained token (this repo, Contents read/write). After the first Admin save, `catalog-backup/admin-state.json` appears on `main`. Health should then show `offHostBackupSavedAt` and, after a host recycle, `offHostBackupRestoredThisBoot: true` with **custom** names (not factory).
 
 ### GoDaddy republish checklist (socialhubomr.com)
 
 1. Publish **`main`** (this repo) in Application Manager — not an old branch.
-2. Open `https://socialhubomr.com/api/health`. Confirm `ok: true`, `dataDir` is **not** `/app/socialhub-oman-data` (expect `/root/socialhub-oman-data` or another host path), and `dataDirInsideApp` is `false`.
-3. In Admin, rename a service (for example YouTube / Canva) and save. Reload health: **`snapshotSavedAt` must be newer** than before the save.
-4. Use **Restart Published App**. Reload health: `dataDir` unchanged, `catalogSeededThisBoot` is `false`, `snapshotSavedAt` still the post-edit value.
-5. Open `https://socialhubomr.com/api/services` and the public site — names/prices must **not** snap back to factory defaults.
-
-If health still shows `/app/socialhub-oman-data`, set Application Manager env **`DATA_DIR=/root/socialhub-oman-data`** (or another persistent volume), restart once, and repeat steps 2–5.
+2. Open `https://socialhubomr.com/api/health`. Confirm `ok: true`, `factorySeedDisabled` is `true`, `offHostBackupConfigured` is `true`, `dataDir` is **not** `/app/socialhub-oman-data`, and `dataDirInsideApp` is `false`.
+3. In Admin, rename a service (for example YouTube / Canva) and save. Also use **Export catalog** to keep a local `admin-state.json`. Reload health: **`snapshotSavedAt`** and **`offHostBackupSavedAt`** must be newer.
+4. Open `https://socialhubomr.com/api/services` — names/prices/offers must match the admin catalog, not factory defaults.
+5. Admin → **Import catalog** can load a previously exported `admin-state.json` if you ever need a manual restore.
 
 ### Complaint email
 
