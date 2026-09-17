@@ -1,9 +1,16 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { isFactorySeedAllowed } from "../config/factorySeed.js";
 
+const DEFAULT_OWNER = "Yunusbashashaik";
+const DEFAULT_REPO = "Social_Hub-Oman";
 const DEFAULT_PATH = "catalog-backup/admin-state.json";
+const DEFAULT_BACKUP_PATH = "catalog-backup/admin-state.backup.json";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_API = "https://api.github.com";
 const USER_AGENT = "socialhub-oman-catalog-backup";
+const MODULE_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 let lastStatus = {
   configured: false,
@@ -37,30 +44,122 @@ export function resetOffHostBackupStatus() {
   };
 }
 
+export function defaultRawBackupUrl(
+  owner = DEFAULT_OWNER,
+  repo = DEFAULT_REPO,
+  branch = DEFAULT_BRANCH,
+  pathName = DEFAULT_PATH,
+) {
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${pathName}`;
+}
+
+function isTestProcess() {
+  if (process.env.NODE_ENV === "test") return true;
+  return process.argv.some((arg) => /(^|[\\/])test[\\/]|\.test\.js$/.test(String(arg)));
+}
+
+function repoRootCandidates() {
+  const roots = [MODULE_REPO_ROOT, process.cwd()];
+  try {
+    roots.push(path.resolve(process.cwd(), ".."));
+  } catch {
+    /* ignore */
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const root of roots) {
+    const resolved = path.resolve(root);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    unique.push(resolved);
+  }
+  return unique;
+}
+
+function listPackagedBackupPaths(filePath = DEFAULT_PATH) {
+  if (process.env.CATALOG_BACKUP_SKIP_PACKAGED === "1") return [];
+  if (isTestProcess() && process.env.CATALOG_BACKUP_USE_PACKAGED !== "1") return [];
+  const relative = [filePath, DEFAULT_BACKUP_PATH, DEFAULT_PATH].filter(Boolean);
+  const paths = [];
+  const seen = new Set();
+  for (const root of repoRootCandidates()) {
+    for (const name of relative) {
+      const full = path.join(root, name);
+      if (seen.has(full)) continue;
+      seen.add(full);
+      paths.push(full);
+    }
+  }
+  return paths;
+}
+
+function packagedAvailable() {
+  return listPackagedBackupPaths().some((file) => {
+    try {
+      return fs.existsSync(file);
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function getOffHostBackupConfig() {
   const token =
     process.env.CATALOG_BACKUP_TOKEN ||
     process.env.GITHUB_TOKEN ||
     process.env.GH_TOKEN ||
     "";
-  const repo = process.env.CATALOG_BACKUP_REPO || "";
+  const repoSpec =
+    process.env.CATALOG_BACKUP_REPO || process.env.GITHUB_REPOSITORY || "";
+  let owner = process.env.CATALOG_BACKUP_OWNER || DEFAULT_OWNER;
+  let repo = DEFAULT_REPO;
+  if (repoSpec.includes("/")) {
+    const [parsedOwner, parsedRepo] = repoSpec.split("/");
+    if (parsedOwner) owner = parsedOwner;
+    if (parsedRepo) repo = parsedRepo;
+  } else if (repoSpec) {
+    repo = repoSpec;
+  }
   const filePath = process.env.CATALOG_BACKUP_PATH || DEFAULT_PATH;
   const branch = process.env.CATALOG_BACKUP_BRANCH || DEFAULT_BRANCH;
-  const url = process.env.CATALOG_BACKUP_URL || "";
+  const urlEnv = process.env.CATALOG_BACKUP_URL || "";
+  const disabled = process.env.CATALOG_BACKUP_DISABLE === "1";
+  const defaultUrl = defaultRawBackupUrl(owner, repo, branch, filePath);
+  const url = urlEnv || (disabled ? "" : defaultUrl);
+  const usingDefaultRaw = Boolean(!urlEnv && url);
   const apiBase = String(process.env.CATALOG_BACKUP_API_URL || DEFAULT_API).replace(
     /\/$/,
     "",
   );
+  const packaged = !disabled && packagedAvailable();
+  const rawReadEnabled =
+    Boolean(url) &&
+    !disabled &&
+    (!isTestProcess() || Boolean(urlEnv) || process.env.CATALOG_BACKUP_ALLOW_NETWORK === "1");
+  const canPush = Boolean(
+    token &&
+      repo &&
+      (!isTestProcess() ||
+        Boolean(process.env.CATALOG_BACKUP_API_URL) ||
+        process.env.CATALOG_BACKUP_ALLOW_NETWORK === "1"),
+  );
+  const canPull = Boolean(!disabled && (rawReadEnabled || canPush || packaged));
   return {
     token,
+    owner,
     repo,
     path: filePath,
     branch,
     url,
+    urlEnv,
+    defaultUrl,
+    usingDefaultRaw,
     apiBase,
-    configured: Boolean(url || (token && repo)),
-    canPush: Boolean(token && repo),
-    canPull: Boolean(url || (token && repo)),
+    configured: Boolean(!disabled && (url || canPush || packaged)),
+    canPush,
+    canPull,
+    rawReadEnabled,
+    packagedAvailable: packaged,
   };
 }
 
@@ -140,6 +239,30 @@ async function pullFromGitHub(cfg) {
   return { snapshot: parseSnapshot(JSON.parse(text), url), sha };
 }
 
+function readPackagedSnapshot() {
+  for (const filePath of listPackagedBackupPaths()) {
+    try {
+      const snapshot = parseSnapshot(
+        JSON.parse(fs.readFileSync(filePath, "utf8")),
+        filePath,
+      );
+      if (snapshot?.services?.length) return snapshot;
+    } catch {
+      /* missing or unreadable */
+    }
+  }
+  return null;
+}
+
+function markPulled(snapshot, source) {
+  lastStatus.pulled = true;
+  lastStatus.source = source;
+  lastStatus.savedAt = snapshot.savedAt || null;
+  lastStatus.error = null;
+  lastStatus.skipped = null;
+  return snapshot;
+}
+
 export async function pullOffHostBackup() {
   const cfg = getOffHostBackupConfig();
   lastStatus.configured = cfg.configured;
@@ -148,25 +271,28 @@ export async function pullOffHostBackup() {
     return null;
   }
   try {
-    if (cfg.url) {
-      const fromUrl = await pullFromUrl(cfg.url);
-      if (fromUrl) {
-        lastStatus.pulled = true;
-        lastStatus.source = cfg.url;
-        lastStatus.savedAt = fromUrl.savedAt || null;
-        lastStatus.error = null;
-        return fromUrl;
-      }
-    }
     if (cfg.canPush) {
       const { snapshot, sha } = await pullFromGitHub(cfg);
       lastStatus.sha = sha;
-      if (snapshot) {
-        lastStatus.pulled = true;
-        lastStatus.source = contentsApiUrl(cfg);
-        lastStatus.savedAt = snapshot.savedAt || null;
-        lastStatus.error = null;
-        return snapshot;
+      if (snapshot?.services?.length) {
+        return markPulled(snapshot, contentsApiUrl(cfg));
+      }
+    }
+    if (cfg.urlEnv && cfg.rawReadEnabled) {
+      const fromUrl = await pullFromUrl(cfg.urlEnv);
+      if (fromUrl?.services?.length) {
+        return markPulled(fromUrl, cfg.urlEnv);
+      }
+    }
+    const packaged = readPackagedSnapshot();
+    if (packaged?.services?.length) {
+      return markPulled(packaged, packaged.sourcePath || "packaged");
+    }
+    if (cfg.rawReadEnabled && cfg.url) {
+      const fromUrl = await pullFromUrl(cfg.url);
+      if (fromUrl?.services?.length) {
+        const source = cfg.usingDefaultRaw ? "github-raw" : cfg.url;
+        return markPulled({ ...fromUrl, sourcePath: source }, source);
       }
     }
     lastStatus.skipped = "not-found";
